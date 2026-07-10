@@ -1,0 +1,5 @@
+# Standalone package (not part of any parent pnpm workspace). Carries the pnpm-11 build-script allow
+# policy so `pnpm install`/`build`/`test` don't stop on the approval gate. esbuild arrives via vitest.
+allowBuilds:
+  esbuild: true
+minimumReleaseAge: 0
