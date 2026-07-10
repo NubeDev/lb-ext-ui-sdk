@@ -1,4 +1,8 @@
 node_modules
-dist
 *.tsbuildinfo
 .DS_Store
+
+# NOTE: dist/ is intentionally COMMITTED (not ignored). This package is consumed as a git dependency
+# (github:NubeDev/lb-ext-ui-sdk#<tag>) whose main/types point at ./dist. pnpm 11 blocks a git dep's
+# `prepare`/build scripts unless allowlisted, so shipping a prebuilt dist is the reliable way for a
+# consumer to resolve types with zero build step — the same convention lb uses for packages/*/dist.
