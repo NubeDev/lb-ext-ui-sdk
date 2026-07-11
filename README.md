@@ -1,8 +1,9 @@
 # @nube/ext-ui-sdk
 
 The **authoritative UI contract for Lazybones extensions**. This package owns the page and
-widget mount contracts and the Vite build preset; the Lazybones shell (`lb`) and every
-extension UI consume it. It is the **single source** that the old three copies — the
+widget mount contracts, the Vite build preset, and **theme + CSS isolation** (an extension's
+styles can never leak into or override the host — see [Theme & CSS](#theme--css-isolation-the-sdk-owns));
+the Lazybones shell (`lb`) and every extension UI consume it. It is the **single source** that the old three copies — the
 host-side type, each extension's `app/contract.ts`, and the devkit template — collapse into.
 
 Published to npm (under `aidanpick`); consumable by a downstream team with **no access to
