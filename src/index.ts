@@ -24,3 +24,9 @@ export type { ExtConfigOptions } from "./vite.js";
 export { mountScoped } from "./mount.js";
 export type { ScopedRender, MountScopedOptions } from "./mount.js";
 export { extTailwindPreset, EXT_ROOT_ATTR } from "./tailwind.js";
+
+// `defineRemote` — the SDK-owned federation entry factory. An ext's `remoteEntry.ts` is generated
+// boilerplate that calls this; the scoped mount + React root + widget dispatch live here, so no ext
+// hand-writes the mount plumbing. It composes `mountScoped` (CSS isolation) with a React root.
+export { defineRemote } from "./remote.js";
+export type { RemoteDef, Remote, PageRender, WidgetRender } from "./remote.js";

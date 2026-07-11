@@ -16,8 +16,9 @@ the private `lb` repo**.
 | `RemoteMount`, `PageCtx`, `PageBridge` | The **page** mount contract: `mount(el, ctx, bridge)`. |
 | `RemoteWidgetMount`, `WidgetCtx`, `WidgetFrame`, `WidgetTheme`, `WidgetHandle`, `WidgetBridge` | The **widget** (frames-in) contract, **v4** — `ctx.data` resolved frames + `ctx.theme` tokens. |
 | `WIDGET_CONTRACT_VERSION` | `4` — tiles gate on `ctx.v` (`>= 3` data, `>= 4` theme). |
+| `defineRemote()`, `RemoteDef`, `Remote`, `PageRender`, `WidgetRender` | The **federation entry factory** — the authoritative way to build a `remoteEntry.ts`. Give it `{ id, styles, page, widgets }`; it returns `{ mount, mountWidget }` with the scoped mount + React root + widget-dispatch handled. An ext's `remoteEntry.ts` is then generated boilerplate — no hand-written mount plumbing. |
 | `defineExtConfig()`, `REACT_EXTERNALS` (from `@nube/ext-ui-sdk/vite`) | The Vite preset: lib-mode ESM `remoteEntry.js` with React externalised (the host import-map / rubix-cube pattern) and CSS kept out of the host `<head>`. |
-| `mountScoped()`, `ScopedRender`, `MountScopedOptions` | The **scoped mount + style** helper: wraps the ext in a scoped root inside the host `el` and attaches its stylesheet **there, never `document.head`**. |
+| `mountScoped()`, `ScopedRender`, `MountScopedOptions` | The lower-level **scoped mount + style** primitive `defineRemote` is built on: wraps the ext in a scoped root inside the host `el` and attaches its stylesheet **there, never `document.head`**. Reach for it directly only if you don't use React. |
 | `extTailwindPreset()`, `EXT_ROOT_ATTR` (from `@nube/ext-ui-sdk/tailwind`) | The Tailwind preset that makes the compiled CSS non-leaky: **Preflight OFF** + every utility **scoped under `[data-ext-root]`**. |
 
 ## Theme & CSS (isolation the SDK owns)
@@ -45,19 +46,24 @@ The contract:
 Because the scoped root lives inside the host-provided `el`, **the host shell needs no change** — an
 extension gets isolation purely by mounting through the SDK.
 
-```ts
-// the extension's remoteEntry.ts — ONE scoped mount, no document.head, no ?inline head-injection
+```tsx
+// the extension's remoteEntry.ts — GENERATED boilerplate: defineRemote owns the scoped mount, the
+// React root, and widget dispatch. No document.head, no hand-written createRoot, no per-ext plumbing.
 import styles from "@/styles/tokens.css?inline";        // the ext's OWN component CSS (scoped by the build)
-import { mountScoped } from "@nube/ext-ui-sdk";
-import { createRoot } from "react-dom/client";
+import { defineRemote } from "@nube/ext-ui-sdk";
+import { App } from "@/App";
+import { GaugeWidget } from "@/widgets/GaugeWidget";
 
-export const mount: RemoteMount = (el, ctx, bridge) =>
-  mountScoped(el, { id: "proof-panel", styles }, (root) => {
-    const r = createRoot(root);
-    r.render(<App ctx={ctx} bridge={bridge} />);
-    return () => r.unmount();
-  });
+export const { mount, mountWidget } = defineRemote({
+  id: "host-metrics",
+  styles,
+  page: (ctx, bridge) => <App ctx={ctx} bridge={bridge} />,
+  widgets: { "host-cpu-mem": (ctx, bridge) => <GaugeWidget bridge={bridge} /> },
+});
 ```
+
+`defineRemote` composes `mountScoped` (below) with a React root under the hood — reach for `mountScoped`
+directly only if your UI isn't React.
 
 ```ts
 // the extension's tailwind.config.ts — Preflight off + utilities scoped, from the preset

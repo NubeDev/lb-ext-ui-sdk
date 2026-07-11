@@ -6,4 +6,6 @@ export type { ExtConfigOptions } from "./vite.js";
 export { mountScoped } from "./mount.js";
 export type { ScopedRender, MountScopedOptions } from "./mount.js";
 export { extTailwindPreset, EXT_ROOT_ATTR } from "./tailwind.js";
+export { defineRemote } from "./remote.js";
+export type { RemoteDef, Remote, PageRender, WidgetRender } from "./remote.js";
 //# sourceMappingURL=index.d.ts.map

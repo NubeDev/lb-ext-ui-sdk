@@ -10,4 +10,8 @@ export { defineExtConfig, REACT_EXTERNALS } from "./vite.js";
 // "Theme & CSS" section. Extensions never define the theme and never write to `document.head`.
 export { mountScoped } from "./mount.js";
 export { extTailwindPreset, EXT_ROOT_ATTR } from "./tailwind.js";
+// `defineRemote` — the SDK-owned federation entry factory. An ext's `remoteEntry.ts` is generated
+// boilerplate that calls this; the scoped mount + React root + widget dispatch live here, so no ext
+// hand-writes the mount plumbing. It composes `mountScoped` (CSS isolation) with a React root.
+export { defineRemote } from "./remote.js";
 //# sourceMappingURL=index.js.map
