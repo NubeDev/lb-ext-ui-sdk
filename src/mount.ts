@@ -19,10 +19,13 @@
 // An extension author calls `mountScoped` and never touches `document.head`. Because the scoped root
 // lives inside the host-provided `el`, the HOST needs no change at all.
 
-/** What the caller renders into the scoped root — e.g. `createRoot(root).render(...)`. Returns an
- *  optional teardown for the render itself (React root unmount); `mountScoped` composes it with the
- *  scoped-root removal so the caller returns ONE teardown. */
-export type ScopedRender = (root: HTMLElement) => void | (() => void);
+/** What the caller renders into — e.g. `createRoot(mount).render(...)`. The element passed in is a
+ *  DEDICATED content node inside the scoped root, NOT the scoped root itself: `createRoot()` clears its
+ *  container's children on mount, so the ext's `<style>` (a sibling under the scoped root) must live
+ *  outside React's container or React would wipe it. Returns an optional teardown for the render itself
+ *  (React root unmount); `mountScoped` composes it with the scoped-root removal so the caller returns
+ *  ONE teardown. */
+export type ScopedRender = (mount: HTMLElement) => void | (() => void);
 
 /** Options for `mountScoped`. */
 export interface MountScopedOptions {
@@ -37,15 +40,18 @@ export interface MountScopedOptions {
  * Mount an extension's UI into `el` with full CSS isolation, and return a single teardown.
  *
  * Creates `<div data-ext-root="<id>" class="h-full w-full">` under `el`, attaches `styles` as a
- * `<style>` INSIDE that div (scoped, not head), then calls `render(root)`. The returned teardown runs
- * the render's own teardown (if any) and removes the scoped root — taking the ext's styles with it.
+ * `<style>` INSIDE that div (scoped, not head), then calls `render(mount)` with a DEDICATED content
+ * child (so React's `createRoot`, which clears its container, can't wipe the `<style>` sibling). The
+ * returned teardown runs the render's own teardown (if any) and removes the scoped root — taking the
+ * ext's styles with it.
  */
 export function mountScoped(
   el: HTMLElement,
   { id, styles }: MountScopedOptions,
   render: ScopedRender,
 ): () => void {
-  const root = el.ownerDocument.createElement("div");
+  const doc = el.ownerDocument;
+  const root = doc.createElement("div");
   root.setAttribute("data-ext-root", id);
   root.className = "h-full w-full";
 
@@ -54,15 +60,22 @@ export function mountScoped(
   // applies to its subtree, and (with the no-Preflight, `[data-ext-root]`-scoped build) its rules only
   // match inside this root — so it cannot touch the host.
   if (styles) {
-    const style = el.ownerDocument.createElement("style");
+    const style = doc.createElement("style");
     style.setAttribute("data-ext-styles", id);
     style.textContent = styles;
     root.appendChild(style);
   }
 
+  // A dedicated content node for the render. `createRoot(mount).render(...)` reconciles `mount` and
+  // clears its children on mount — if we handed it `root`, it would remove the `<style>` sibling above.
+  // Rendering into a separate child keeps the stylesheet intact for the ext's whole lifetime.
+  const mount = doc.createElement("div");
+  mount.className = "h-full w-full";
+  root.appendChild(mount);
+
   el.appendChild(root);
 
-  const teardown = render(root);
+  const teardown = render(mount);
   return () => {
     try {
       if (typeof teardown === "function") teardown();
