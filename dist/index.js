@@ -14,4 +14,8 @@ export { extTailwindPreset, EXT_ROOT_ATTR } from "./tailwind.js";
 // boilerplate that calls this; the scoped mount + React root + widget dispatch live here, so no ext
 // hand-writes the mount plumbing. It composes `mountScoped` (CSS isolation) with a React root.
 export { defineRemote } from "./remote.js";
+// i18n — the SDK-owned catalog seam (lb release scope, gap d): extensions and shells ship flat
+// en/es catalogs, resolve locale via user pref → navigator.language → en, and gate key parity in
+// CI with `catalogParity`. Additive; nothing existing changes.
+export { resolveLocale, makeTranslator, catalogParity, FALLBACK_LOCALE } from "./i18n.js";
 //# sourceMappingURL=index.js.map
