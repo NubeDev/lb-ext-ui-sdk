@@ -1,6 +1,6 @@
 {
   "name": "@nube/ext-ui-sdk",
-  "version": "0.4.0",
+  "version": "0.8.0",
   "description": "The authoritative UI contract for Lazybones extensions: the page mount, the widget (frames-in) contract, and the Vite build preset.",
   "license": "MIT",
   "repository": {
@@ -14,20 +14,51 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./vite": {
       "types": "./dist/vite.d.ts",
-      "import": "./dist/vite.js"
+      "import": "./dist/vite.js",
+      "default": "./dist/vite.js"
+    },
+    "./tailwind": {
+      "types": "./dist/tailwind.d.ts",
+      "import": "./dist/tailwind.js",
+      "default": "./dist/tailwind.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime.d.ts",
+      "import": "./dist/runtime.js",
+      "default": "./dist/runtime.js"
     }
   },
-  "files": ["dist", "src", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
+  "peerDependencies": {
+    "react": "^18 || ^19",
+    "react-dom": "^18 || ^19"
+  },
+  "peerDependenciesMeta": {
+    "react": { "optional": true },
+    "react-dom": { "optional": true }
+  },
   "devDependencies": {
+    "@testing-library/react": "^16.0.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "jsdom": "^29.1.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
   }
