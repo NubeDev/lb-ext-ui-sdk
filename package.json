@@ -1,6 +1,6 @@
 {
   "name": "@nube/ext-ui-sdk",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "The authoritative UI contract for Lazybones extensions: the page mount, the widget (frames-in) contract, and the Vite build preset.",
   "license": "MIT",
   "repository": {
@@ -26,6 +26,11 @@
       "types": "./dist/tailwind.d.ts",
       "import": "./dist/tailwind.js",
       "default": "./dist/tailwind.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime.d.ts",
+      "import": "./dist/runtime.js",
+      "default": "./dist/runtime.js"
     }
   },
   "files": [

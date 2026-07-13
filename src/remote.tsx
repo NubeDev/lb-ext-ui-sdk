@@ -25,6 +25,7 @@ import { createRoot } from "react-dom/client";
 import { mountScoped } from "./mount.js";
 import type { PageBridge, PageCtx, RemoteMount } from "./page.js";
 import type { RemoteWidgetMount, WidgetBridge, WidgetCtx } from "./widget.js";
+import { RuntimeProvider } from "./runtime.js";
 
 /** Render the ext's page: given the host `ctx` + `bridge`, return the page's React tree. */
 export type PageRender = (ctx: PageCtx, bridge: PageBridge) => ReactNode;
@@ -51,11 +52,25 @@ export interface Remote {
 }
 
 /** Render `node` into `el` (scoped + isolated) via a React root, returning a single teardown. Shared by
- *  the page and widget paths so the mount plumbing exists once. */
-function renderScoped(el: HTMLElement, id: string, styles: string | undefined, node: ReactNode) {
+ *  the page and widget paths so the mount plumbing exists once. Wraps the ext tree in `RuntimeProvider`
+ *  (fed the host `ctx`/`bridge`) so the ext's `useSession`/`useMcpClient` resolve without any wiring. */
+function renderScoped(
+  el: HTMLElement,
+  id: string,
+  styles: string | undefined,
+  ctx: PageCtx,
+  bridge: PageBridge,
+  node: ReactNode,
+) {
   return mountScoped(el, { id, styles }, (mount) => {
     const root = createRoot(mount);
-    root.render(<StrictMode>{node}</StrictMode>);
+    root.render(
+      <StrictMode>
+        <RuntimeProvider ctx={ctx} bridge={bridge}>
+          {node}
+        </RuntimeProvider>
+      </StrictMode>,
+    );
     return () => root.unmount();
   });
 }
@@ -69,13 +84,13 @@ export function defineRemote(def: RemoteDef): Remote {
   const { id, styles, page, widgets = {} } = def;
 
   const mount: RemoteMount = (el, ctx, bridge) =>
-    renderScoped(el, id, styles, page ? page(ctx, bridge) : null);
+    renderScoped(el, id, styles, ctx, bridge, page ? page(ctx, bridge) : null);
 
   const mountWidget: RemoteWidgetMount = (el, ctx, bridge, widgetId) => {
     // Dispatch by id; fall back to the first declared widget for an unknown/empty id (matches the
     // shell's `ext:<id>/<widget>` key resolution being best-effort).
     const render = widgets[widgetId] ?? Object.values(widgets)[0];
-    return renderScoped(el, id, styles, render ? render(ctx, bridge) : null);
+    return renderScoped(el, id, styles, ctx, bridge, render ? render(ctx, bridge) : null);
   };
 
   return { mount, mountWidget };

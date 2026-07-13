@@ -22,12 +22,14 @@ import { jsx as _jsx } from "react/jsx-runtime";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { mountScoped } from "./mount.js";
+import { RuntimeProvider } from "./runtime.js";
 /** Render `node` into `el` (scoped + isolated) via a React root, returning a single teardown. Shared by
- *  the page and widget paths so the mount plumbing exists once. */
-function renderScoped(el, id, styles, node) {
+ *  the page and widget paths so the mount plumbing exists once. Wraps the ext tree in `RuntimeProvider`
+ *  (fed the host `ctx`/`bridge`) so the ext's `useSession`/`useMcpClient` resolve without any wiring. */
+function renderScoped(el, id, styles, ctx, bridge, node) {
     return mountScoped(el, { id, styles }, (mount) => {
         const root = createRoot(mount);
-        root.render(_jsx(StrictMode, { children: node }));
+        root.render(_jsx(StrictMode, { children: _jsx(RuntimeProvider, { ctx: ctx, bridge: bridge, children: node }) }));
         return () => root.unmount();
     });
 }
@@ -38,12 +40,12 @@ function renderScoped(el, id, styles, node) {
  */
 export function defineRemote(def) {
     const { id, styles, page, widgets = {} } = def;
-    const mount = (el, ctx, bridge) => renderScoped(el, id, styles, page ? page(ctx, bridge) : null);
+    const mount = (el, ctx, bridge) => renderScoped(el, id, styles, ctx, bridge, page ? page(ctx, bridge) : null);
     const mountWidget = (el, ctx, bridge, widgetId) => {
         // Dispatch by id; fall back to the first declared widget for an unknown/empty id (matches the
         // shell's `ext:<id>/<widget>` key resolution being best-effort).
         const render = widgets[widgetId] ?? Object.values(widgets)[0];
-        return renderScoped(el, id, styles, render ? render(ctx, bridge) : null);
+        return renderScoped(el, id, styles, ctx, bridge, render ? render(ctx, bridge) : null);
     };
     return { mount, mountWidget };
 }
