@@ -1,6 +1,6 @@
-export type { PageCtx, PageBridge, RemoteMount, HeaderStyle, HeaderLine } from "./page.js";
+export type { PageCtx, PageBridge, RemoteMount, HeaderStyle, HeaderLine, SidebarToggle } from "./page.js";
 export { ExtPage, ExtHeader } from "./ext-page.js";
-export type { ExtPageProps } from "./ext-page.js";
+export type { ExtPageProps, Crumb } from "./ext-page.js";
 export type { WidgetField, WidgetFrame, WidgetTheme, WidgetCtx, WidgetBridge, WidgetHandle, RemoteWidgetMount, } from "./widget.js";
 export { WIDGET_CONTRACT_VERSION } from "./widget.js";
 export { defineExtConfig, REACT_EXTERNALS } from "./vite.js";

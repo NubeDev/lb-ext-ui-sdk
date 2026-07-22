@@ -3,14 +3,15 @@
 // The host shell (lb) and every extension import these types from here. This package is the SINGLE
 // SOURCE the old per-extension `app/contract.ts` copies and the host-side type collapse into.
 
-export type { PageCtx, PageBridge, RemoteMount, HeaderStyle, HeaderLine } from "./page.js";
+export type { PageCtx, PageBridge, RemoteMount, HeaderStyle, HeaderLine, SidebarToggle } from "./page.js";
 
-// `<ExtPage>` / `<ExtHeader>` — the SDK-owned page shell whose header INHERITS the host's Header-style
-// setting (Settings → Theme → Layout), so extension pages match host pages with no per-ext work and no
-// drift (the extension analogue of the host's `<AppPage>`). Reads the member's choice from `ctx`; an ext
-// never picks a header itself. See `ext-page.tsx`.
+// `<ExtPage>` / `<ExtHeader>` — the SDK-owned page shell whose header INHERITS the host's Header chrome
+// (Settings → Theme → Layout: Header style, Header line, Sidebar button), including a working sidebar
+// toggle and clickable drill breadcrumbs — so extension pages match host pages with no per-ext work and
+// no drift (the extension analogue of the host's `<AppPage>`). Reads every axis + the host toggle
+// callback from `ctx`; an ext never picks a header itself. See `ext-page.tsx`.
 export { ExtPage, ExtHeader } from "./ext-page.js";
-export type { ExtPageProps } from "./ext-page.js";
+export type { ExtPageProps, Crumb } from "./ext-page.js";
 export type {
   WidgetField,
   WidgetFrame,
