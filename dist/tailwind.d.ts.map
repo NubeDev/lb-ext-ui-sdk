@@ -1,1 +1,1 @@
-{"version":3,"file":"tailwind.d.ts","sourceRoot":"","sources":["../src/tailwind.ts"],"names":[],"mappings":"AAyBA,0GAA0G;AAC1G,eAAO,MAAM,aAAa,EAAG,eAAwB,CAAC;AAEtD;2GAC2G;AAC3G,wBAAgB,iBAAiB,IAAI,MAAM,CAAC,MAAM,EAAE,OAAO,CAAC,CAO3D"}
+{"version":3,"file":"tailwind.d.ts","sourceRoot":"","sources":["../src/tailwind.ts"],"names":[],"mappings":"AAyBA,0GAA0G;AAC1G,eAAO,MAAM,aAAa,EAAG,eAAwB,CAAC;AA0DtD;;;;6DAI6D;AAC7D,wBAAgB,iBAAiB,IAAI,MAAM,CAAC,MAAM,EAAE,OAAO,CAAC,CAkB3D"}
