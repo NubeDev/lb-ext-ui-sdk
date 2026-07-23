@@ -10,6 +10,8 @@ export type { ScopedRender, MountScopedOptions } from "./mount.js";
 export { extTailwindPreset, EXT_ROOT_ATTR } from "./tailwind.js";
 export { defineRemote } from "./remote.js";
 export type { RemoteDef, Remote, PageRender, WidgetRender } from "./remote.js";
+export { hostLink } from "./hostLink.js";
+export type { HostLinkOptions } from "./hostLink.js";
 export { resolveLocale, makeTranslator, catalogParity, FALLBACK_LOCALE } from "./i18n.js";
 export type { Catalog, Catalogs, Translator } from "./i18n.js";
 //# sourceMappingURL=index.d.ts.map

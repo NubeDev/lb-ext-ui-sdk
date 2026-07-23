@@ -39,6 +39,13 @@ export { extTailwindPreset, EXT_ROOT_ATTR } from "./tailwind.js";
 export { defineRemote } from "./remote.js";
 export type { RemoteDef, Remote, PageRender, WidgetRender } from "./remote.js";
 
+// `hostLink` — build a stable deep link from an extension page INTO a host surface (generated-product-ux
+// scope, Plane 1). An extension seeds a dashboard from its pack and LINKS to the host's own viewer with
+// variables preselected, rather than rendering a private board — the link is built here so no ext
+// hand-rolls a host URL. Pure URL builder; see `hostLink.ts` for the host route contract.
+export { hostLink } from "./hostLink.js";
+export type { HostLinkOptions } from "./hostLink.js";
+
 // i18n — the SDK-owned catalog seam (lb release scope, gap d): extensions and shells ship flat
 // en/es catalogs, resolve locale via user pref → navigator.language → en, and gate key parity in
 // CI with `catalogParity`. Additive; nothing existing changes.
