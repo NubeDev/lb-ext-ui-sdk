@@ -4,8 +4,9 @@ import { act } from "@testing-library/react";
 import { createRoot } from "react-dom/client";
 
 import { defineRemote } from "./remote.js";
-import { useSession, useMcpClient } from "./runtime.js";
+import { useSession, useMcpClient, useCaps, useIsAdmin } from "./runtime.js";
 import type { PageBridge, PageCtx } from "./page.js";
+import type { WidgetCtx } from "./widget.js";
 
 // See remote.test.tsx: `createRoot().render()` commits asynchronously, so mounts are wrapped in `act()`.
 function mountAct(fn: () => void | (() => void)) {
@@ -55,6 +56,77 @@ describe("/runtime — in-page session + MCP hooks fed by defineRemote", () => {
     const res = await call!<{ ok: boolean }>("modbus.list", { site: "s1" });
     expect(res).toEqual({ ok: true });
     expect(calls).toEqual([["modbus.list", { site: "s1" }]]);
+  });
+
+  it("useCaps/useIsAdmin read the host-stamped caller projection", () => {
+    // The host (rubix-ai ExtHost) stamps the verified session's caps + its own isAdmin verdict onto
+    // the mount ctx; the page reads them synchronously, no probe.
+    const ctx: PageCtx = { workspace: "acme", caps: ["mcp:ems.access.grant:call"], isAdmin: true };
+    const bridge: PageBridge = { call: async () => ({}) as never };
+
+    let caps: string[] | null = null;
+    let admin: boolean | null = null;
+    function Page() {
+      caps = useCaps();
+      admin = useIsAdmin();
+      return <div>ok</div>;
+    }
+    const { mount } = defineRemote({ id: "runtime-caps", page: () => <Page /> });
+    const el = document.createElement("div");
+    mountAct(() => mount(el, ctx, bridge));
+
+    expect(caps).toEqual(["mcp:ems.access.grant:call"]);
+    expect(admin).toBe(true);
+  });
+
+  it("useCaps/useIsAdmin fail CLOSED under an old host that omits the fields", () => {
+    // Backward-compat: a legacy `{ workspace }`-only ctx (a host predating ui-v0.12.0). caps ⇒ [],
+    // isAdmin ⇒ false — an ext hides admin affordances rather than showing them to everyone.
+    const ctx: PageCtx = { workspace: "acme" };
+    const bridge: PageBridge = { call: async () => ({}) as never };
+
+    let caps: string[] | null = null;
+    let admin: boolean | null = null;
+    function Page() {
+      caps = useCaps();
+      admin = useIsAdmin();
+      return <div>ok</div>;
+    }
+    const { mount } = defineRemote({ id: "runtime-caps-legacy", page: () => <Page /> });
+    const el = document.createElement("div");
+    mountAct(() => mount(el, ctx, bridge));
+
+    expect(caps).toEqual([]);
+    expect(admin).toBe(false);
+  });
+
+  it("the widget mount ctx carries the same caps/isAdmin projection (parity)", () => {
+    // Parity with the page ctx: mountWidget forwards the host-stamped caller projection too, so a
+    // panel/ext widget gates consistently with a full page. A widget reads them off ctx directly.
+    let seen: WidgetCtx | null = null;
+    const ctx: WidgetCtx = {
+      v: 4,
+      workspace: "acme",
+      binding: {},
+      options: {},
+      caps: ["mcp:ems.access.grant:call"],
+      isAdmin: true,
+    };
+    const bridge = { call: async () => ({}) as never, watch: () => () => {} };
+    const { mountWidget } = defineRemote({
+      id: "runtime-widget-caps",
+      widgets: {
+        panel: (wctx) => {
+          seen = wctx as WidgetCtx;
+          return <div>ok</div>;
+        },
+      },
+    });
+    const el = document.createElement("div");
+    mountAct(() => mountWidget(el, ctx, bridge, "panel"));
+
+    expect(seen?.caps).toEqual(["mcp:ems.access.grant:call"]);
+    expect(seen?.isAdmin).toBe(true);
   });
 
   it("a hook rendered outside a mounted remote throws a programming error", () => {

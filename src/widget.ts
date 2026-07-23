@@ -64,6 +64,16 @@ export interface WidgetCtx {
   /** v4: the resolved theme tokens (concrete strings) — for JS/canvas widgets. DOM widgets re-theme via
    *  the CSS cascade and can ignore this. Re-supplied on every theme change through `update(ctx)`. */
   theme?: WidgetTheme;
+  /** The caller's workspace-scoped capabilities, projected by the host at mount (parity with the page
+   *  `PageCtx.caps` — the SAME host `session.caps`). A widget gates a per-cap affordance directly from
+   *  this. A read-only view of grants the caller already holds; the bridge re-checks every call. ADDITIVE
+   *  + FAIL-CLOSED — a host predating this omits it (treat absent as `[]`). Omitted ⇒ hide the control. */
+  caps?: string[];
+  /** Whether the caller is an admin — the host's OWN `isAdmin(caps)` verdict (parity with
+   *  `PageCtx.isAdmin`, the SAME definition), stamped at mount. Show/hide ONLY. ADDITIVE + FAIL-CLOSED —
+   *  a host predating this omits it; treat absent as `false` (an admin sees too little, never a member
+   *  too much). Omitted ⇒ hide admin affordances. */
+  isAdmin?: boolean;
 }
 
 /** The widget bridge — the leashed `call`/`watch` seam (a data tile needs neither; it renders `ctx.data`). */

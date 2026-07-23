@@ -33,6 +33,27 @@ export interface PageCtx {
      *  and the SDK header calls it. Omitted (bare preview, or a host with no sidebar) ⇒ the toggle button
      *  is not rendered — there is nothing to toggle. */
     onToggleSidebar?: () => void;
+    /** The caller's workspace-scoped capabilities, projected by the host at mount from the verified
+     *  session (rubix-ai `ExtHost` stamps `session.caps`). Read via the SDK's `useCaps()` — an extension
+     *  page gates a per-cap affordance from this signal directly, with NO backend probe or round-trip. A
+     *  read-only view of grants the caller ALREADY holds: it grants nothing, and the leashed bridge
+     *  re-checks every call server-side (the verbs are the wall). ADDITIVE + FAIL-CLOSED — an old host
+     *  omits it; `useCaps()` then returns `[]`, so an ext hides the affordance rather than showing it to
+     *  everyone. Stamped at mount; a mid-session caps change reflects on the next mount (the `update(ctx)`
+     *  live re-supply is the same deferred follow-up as the header-theme axes). Omitted ⇒ `[]`. */
+    caps?: string[];
+    /** Whether the caller is an admin — the host's OWN `isAdmin(caps)` verdict (rubix-ai
+     *  `lib/session/admin-caps.ts`: any of `ADMIN_SECTION_CAPS` present), stamped at mount so "admin"
+     *  means ONE thing across host and ext and is NEVER re-derived on the ext side. Read via the SDK's
+     *  `useIsAdmin()`. Show/hide ONLY — a mis-shown control still fails at the verb. ADDITIVE +
+     *  FAIL-CLOSED — an old host omits it; `useIsAdmin()` then returns `false` (an admin sees too little,
+     *  never a member too much). Omitted ⇒ `false`. */
+    isAdmin?: boolean;
+    /** @deprecated NOT an authorization signal. lb mints EVERY session `role: "member"` and carries real
+     *  authority in the CAP set — the role string cannot tell a real admin from a scoped member (backend
+     *  `caller.rs`). Gate on `isAdmin`/`caps` (via `useIsAdmin()`/`useCaps()`) instead. Retained only so
+     *  existing type-referencers don't break; scheduled for removal in the next MAJOR. */
+    role?: string;
 }
 /** The leashed bridge: the ONLY way a page reaches the platform — a host-mediated, caps-checked MCP
  *  call. Mirrors the WASM guest's `host.call-tool` and the widget bridge's `call`. */
