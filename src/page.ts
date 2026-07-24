@@ -63,17 +63,85 @@ export interface PageCtx {
    *  `caller.rs`). Gate on `isAdmin`/`caps` (via `useIsAdmin()`/`useCaps()`) instead. Retained only so
    *  existing type-referencers don't break; scheduled for removal in the next MAJOR. */
   role?: string;
+  /** The sub-path below `/ext/<id>/` — the extension's OWN nav address (`""` at its root). The extension
+   *  renders THIS route; the URL (owned by the host) is the single source of truth, so the ext keeps no
+   *  parallel nav state. Re-supplied on EVERY navigation through the live `update(ctx)` handle the mount
+   *  returns — never a remount (ext-nav-contribution scope). ADDITIVE + FAIL-SAFE: a host predating nav
+   *  contribution omits it ⇒ `""` (the ext shows its root view). Read via `useRoute()`. */
+  route?: string;
+  /** Ask the HOST to change the address bar to `/ext/<id>/<path>`. The host navigates; the ext re-renders
+   *  from the resulting `ctx.route`. ONE direction of truth: the URL. The ext NEVER pushes history itself.
+   *  ADDITIVE + FAIL-SAFE: a host predating nav contribution omits it ⇒ a no-op (the ext stays on its
+   *  current view). Read via `useNavigate()`. */
+  onNavigate?: (path: string) => void;
+}
+
+/** A top-level nav destination an extension DECLARES in its manifest `[[ui.nav]]` block — a lens the host
+ *  renders in ITS sidebar as a nested child of the extension's group (ext-nav-contribution scope). The host
+ *  RELAYS and RENDERS these; it never interprets an `id`. `label` is an i18n KEY in the EXTENSION's own
+ *  catalog (the host does not translate it). This mirrors the manifest/`ExtRow` shape verbatim. */
+export interface ExtNavItem {
+  /** The opaque item id — the `ext:<ext>/<id>` view-key segment. Slug `[a-z0-9-]{1,32}`, unique per block. */
+  id: string;
+  /** An i18n key in the extension's OWN catalog (resolved ext-side, never host-side). */
+  label: string;
+  /** A lucide icon name (opaque; the host maps it). Omitted ⇒ the host's default. */
+  icon?: string;
+  /** Presentation gate ONLY — mirrors the host's admin show/hide. The verbs remain the wall; hiding an
+   *  item never blocks its deep link. Omitted ⇒ visible to everyone. */
+  admin?: boolean;
+  /** Whether this item's children are supplied at RUNTIME via `bridge.setNav`. A `dynamic` item with no
+   *  children yet renders as a deliberate (childless) parent, not a broken one. Omitted ⇒ static. */
+  dynamic?: boolean;
+}
+
+/** A live child an extension PUBLISHES under a `dynamic` nav item via `bridge.setNav` — rendered by the
+ *  host in ITS sidebar (ext-nav-contribution scope). Ephemeral + per-mount: never persisted, never shared
+ *  between members, gone on unmount. WHATEVER the ext hands `setNav` renders as-is in host chrome, so a
+ *  reach-scoped label (e.g. a site name) MUST be derived through the ext's own reach chokepoint — the host
+ *  cannot filter for the ext. Clamped by `clampNavChildren` before it reaches the host. */
+export interface ExtNavChild {
+  /** The opaque child id — appended to the parent's route (`ext:<ext>/<parent>/<id>`). */
+  id: string;
+  /** The display label, rendered verbatim in host chrome (already reach-scoped by the ext). */
+  label: string;
+  /** A lucide icon name (opaque). Omitted ⇒ no icon. */
+  icon?: string;
+  /** Nested grandchildren (depth ≤ 3 total, clamped). Omitted ⇒ a leaf. */
+  children?: ExtNavChild[];
 }
 
 /** The leashed bridge: the ONLY way a page reaches the platform — a host-mediated, caps-checked MCP
  *  call. Mirrors the WASM guest's `host.call-tool` and the widget bridge's `call`. */
 export interface PageBridge {
   call: <T = unknown>(tool: string, args?: Record<string, unknown>) => Promise<T>;
+  /** Publish live children for the extension's `dynamic` `[[ui.nav]]` items — the host renders them as
+   *  nested entries in ITS sidebar (ext-nav-contribution scope). Ephemeral + per-mount: never persisted,
+   *  never shared between members, gone on unmount. The host renders WHATEVER it is handed, so a
+   *  reach-scoped label MUST be derived through the extension's own reach chokepoint before it is passed
+   *  here (the host cannot filter for the extension). The SDK CLAMPS the tree (`clampNavChildren`: ≤200
+   *  items, depth ≤3, label ≤64 chars — over-cap truncates with a console warning, never throws) so a
+   *  runaway nav can never break the page. ADDITIVE + FAIL-SAFE — a host predating nav contribution omits
+   *  it, and the extension then simply has no dynamic children. */
+  setNav?: (items: ExtNavChild[]) => void;
 }
 
-/** The mount contract every extension page remote must expose. Returns an optional teardown. */
+/** What a page `mount` MAY return instead of a bare teardown (parity with `WidgetHandle`): `update(ctx)`
+ *  re-supplies a fresh `ctx` (a new `route`, caps, or header axis) and re-renders IN PLACE on the existing
+ *  React root — NO remount, so page state, scroll, and in-flight data survive a sidebar click. `teardown()`
+ *  disposes on unmount. This is the live re-supply the nav contract stands on: the host threads `ctx.route`
+ *  through `update`, never through a remount (ext-nav-contribution scope, the remount trap). */
+export interface PageHandle {
+  update?: (ctx: PageCtx) => void;
+  teardown?: () => void;
+}
+
+/** The mount contract every extension page remote must expose. Returns void, a bare teardown (legacy), or
+ *  a `{ update, teardown }` handle (the live re-supply path). ADDITIVE: the `void | (() => void)` forms
+ *  still hold, so this stays a minor — a host that only knows the teardown form keeps working, and a host
+ *  that knows the handle drives `update(ctx)` for in-place route/caps re-supply. */
 export type RemoteMount = (
   el: HTMLElement,
   ctx: PageCtx,
   bridge: PageBridge,
-) => void | (() => void);
+) => void | (() => void) | PageHandle;

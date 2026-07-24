@@ -30,4 +30,13 @@ export declare function useCaps(): string[];
  *  omits `ctx.isAdmin` yields `false` (an admin sees too little, never a member too much). Show/hide
  *  ONLY — the verbs remain the wall; a mis-shown control still fails server-side. */
 export declare function useIsAdmin(): boolean;
+/** The extension's current nav route — the sub-path below `/ext/<id>/` (`""` at the root), owned by the
+ *  HOST URL and re-supplied live through `update(ctx)` on every navigation (ext-nav-contribution scope).
+ *  This is the SINGLE source of truth for which destination the ext shows; the ext keeps no parallel nav
+ *  state. FAIL-SAFE: a host predating nav contribution omits `ctx.route` ⇒ `""` (the root view). */
+export declare function useRoute(): string;
+/** Ask the HOST to navigate to `path` (the sub-path below `/ext/<id>/`). The host changes the address bar;
+ *  the ext re-renders from the resulting `ctx.route` (one direction of truth — the URL). Returns a stable
+ *  no-op when the host predates nav contribution (`ctx.onNavigate` absent), so an ext can always call it. */
+export declare function useNavigate(): (path: string) => void;
 //# sourceMappingURL=runtime.d.ts.map

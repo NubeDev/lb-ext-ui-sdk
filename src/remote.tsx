@@ -23,7 +23,7 @@ import { StrictMode, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { mountScoped } from "./mount.js";
-import type { PageBridge, PageCtx, RemoteMount } from "./page.js";
+import type { PageBridge, PageCtx, PageHandle, RemoteMount } from "./page.js";
 import type { RemoteWidgetMount, WidgetBridge, WidgetCtx } from "./widget.js";
 import { RuntimeProvider } from "./runtime.js";
 
@@ -51,28 +51,44 @@ export interface Remote {
   mountWidget: RemoteWidgetMount;
 }
 
-/** Render `node` into `el` (scoped + isolated) via a React root, returning a single teardown. Shared by
- *  the page and widget paths so the mount plumbing exists once. Wraps the ext tree in `RuntimeProvider`
- *  (fed the host `ctx`/`bridge`) so the ext's `useSession`/`useMcpClient` resolve without any wiring. */
+/** A live handle over one scoped React root: `update(ctx)` re-renders IN PLACE (no remount), `teardown()`
+ *  disposes. `renderScoped` returns this so both the page and widget paths get in-place re-supply for free. */
+interface ScopedHandle {
+  update: (ctx: PageCtx) => void;
+  teardown: () => void;
+}
+
+/** Render into `el` (scoped + isolated) via a React root, returning a live `{ update, teardown }`. Shared by
+ *  the page and widget paths so the mount plumbing exists once. `renderNode(ctx)` is re-invoked on every
+ *  `update` so a fresh `ctx` (route/caps/theme) flows both through the returned tree AND the `RuntimeProvider`
+ *  (so `useRoute`/`useSession` see it) — React reconciles the SAME root, so the ext component is NOT remounted
+ *  and its state survives. `update` calling `root.render` again is idempotent reconciliation, not a new mount. */
 function renderScoped(
   el: HTMLElement,
   id: string,
   styles: string | undefined,
   ctx: PageCtx,
   bridge: PageBridge,
-  node: ReactNode,
-) {
-  return mountScoped(el, { id, styles }, (mount) => {
-    const root = createRoot(mount);
-    root.render(
-      <StrictMode>
-        <RuntimeProvider ctx={ctx} bridge={bridge}>
-          {node}
-        </RuntimeProvider>
-      </StrictMode>,
-    );
-    return () => root.unmount();
+  renderNode: (ctx: PageCtx) => ReactNode,
+): ScopedHandle {
+  let root: ReturnType<typeof createRoot> | null = null;
+  const tree = (c: PageCtx) => (
+    <StrictMode>
+      <RuntimeProvider ctx={c} bridge={bridge}>
+        {renderNode(c)}
+      </RuntimeProvider>
+    </StrictMode>
+  );
+  const teardown = mountScoped(el, { id, styles }, (mount) => {
+    root = createRoot(mount);
+    root.render(tree(ctx));
+    return () => root?.unmount();
   });
+  return {
+    // Re-render on the EXISTING root — reconciliation, never a remount (the whole point of the handle).
+    update: (next) => root?.render(tree(next)),
+    teardown,
+  };
 }
 
 /**
@@ -83,14 +99,26 @@ function renderScoped(
 export function defineRemote(def: RemoteDef): Remote {
   const { id, styles, page, widgets = {} } = def;
 
-  const mount: RemoteMount = (el, ctx, bridge) =>
-    renderScoped(el, id, styles, ctx, bridge, page ? page(ctx, bridge) : null);
+  // A page returns a live `{ update, teardown }` handle: the host drives `update(ctx)` to re-supply a new
+  // `ctx.route`/caps IN PLACE (no remount — see `renderScoped`). A host that only knows the legacy teardown
+  // form still works: `teardown` is a function on the handle and the shipped `ExtHost` calls it on unmount.
+  const mount: RemoteMount = (el, ctx, bridge): PageHandle => {
+    const handle = renderScoped(el, id, styles, ctx, bridge, (c) =>
+      page ? page(c, bridge) : null,
+    );
+    return { update: handle.update, teardown: handle.teardown };
+  };
 
   const mountWidget: RemoteWidgetMount = (el, ctx, bridge, widgetId) => {
     // Dispatch by id; fall back to the first declared widget for an unknown/empty id (matches the
-    // shell's `ext:<id>/<widget>` key resolution being best-effort).
+    // shell's `ext:<id>/<widget>` key resolution being best-effort). Widgets keep the legacy bare-teardown
+    // return (the shipped widget host expects `void | (() => void) | WidgetHandle`) — nav re-supply is a
+    // page concern, so we return only the teardown here and leave the widget contract untouched.
     const render = widgets[widgetId] ?? Object.values(widgets)[0];
-    return renderScoped(el, id, styles, ctx, bridge, render ? render(ctx, bridge) : null);
+    const handle = renderScoped(el, id, styles, ctx as PageCtx, bridge as PageBridge, () =>
+      render ? render(ctx, bridge) : null,
+    );
+    return handle.teardown;
   };
 
   return { mount, mountWidget };

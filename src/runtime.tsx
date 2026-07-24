@@ -71,3 +71,22 @@ export function useCaps(): string[] {
 export function useIsAdmin(): boolean {
   return useRuntime("useIsAdmin").ctx.isAdmin ?? false;
 }
+
+/** The extension's current nav route — the sub-path below `/ext/<id>/` (`""` at the root), owned by the
+ *  HOST URL and re-supplied live through `update(ctx)` on every navigation (ext-nav-contribution scope).
+ *  This is the SINGLE source of truth for which destination the ext shows; the ext keeps no parallel nav
+ *  state. FAIL-SAFE: a host predating nav contribution omits `ctx.route` ⇒ `""` (the root view). */
+export function useRoute(): string {
+  return useRuntime("useRoute").ctx.route ?? "";
+}
+
+/** Ask the HOST to navigate to `path` (the sub-path below `/ext/<id>/`). The host changes the address bar;
+ *  the ext re-renders from the resulting `ctx.route` (one direction of truth — the URL). Returns a stable
+ *  no-op when the host predates nav contribution (`ctx.onNavigate` absent), so an ext can always call it. */
+export function useNavigate(): (path: string) => void {
+  return useRuntime("useNavigate").ctx.onNavigate ?? noop;
+}
+
+/** A shared stable no-op so `useNavigate()` returns a referentially stable fn on an old host (no re-renders
+ *  from a fresh closure identity each call). */
+function noop(): void {}

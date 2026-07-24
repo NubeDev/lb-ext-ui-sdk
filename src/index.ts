@@ -3,7 +3,21 @@
 // The host shell (lb) and every extension import these types from here. This package is the SINGLE
 // SOURCE the old per-extension `app/contract.ts` copies and the host-side type collapse into.
 
-export type { PageCtx, PageBridge, RemoteMount, HeaderStyle, HeaderLine, SidebarToggle } from "./page.js";
+export type {
+  PageCtx,
+  PageBridge,
+  PageHandle,
+  RemoteMount,
+  HeaderStyle,
+  HeaderLine,
+  SidebarToggle,
+  ExtNavItem,
+  ExtNavChild,
+} from "./page.js";
+
+// The `bridge.setNav` caps live in ONE place — the SDK clamps the child tree (count/depth/label) before it
+// reaches host chrome (ext-nav-contribution scope). Exported so a host bridge can reuse the exact same clamp.
+export { clampNavChildren, NAV_MAX_ITEMS, NAV_MAX_DEPTH, NAV_MAX_LABEL } from "./nav.js";
 
 // `<ExtPage>` / `<ExtHeader>` — the SDK-owned page shell whose header INHERITS the host's Header chrome
 // (Settings → Theme → Layout: Header style, Header line, Sidebar button), including a working sidebar

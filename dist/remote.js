@@ -23,15 +23,24 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { mountScoped } from "./mount.js";
 import { RuntimeProvider } from "./runtime.js";
-/** Render `node` into `el` (scoped + isolated) via a React root, returning a single teardown. Shared by
- *  the page and widget paths so the mount plumbing exists once. Wraps the ext tree in `RuntimeProvider`
- *  (fed the host `ctx`/`bridge`) so the ext's `useSession`/`useMcpClient` resolve without any wiring. */
-function renderScoped(el, id, styles, ctx, bridge, node) {
-    return mountScoped(el, { id, styles }, (mount) => {
-        const root = createRoot(mount);
-        root.render(_jsx(StrictMode, { children: _jsx(RuntimeProvider, { ctx: ctx, bridge: bridge, children: node }) }));
-        return () => root.unmount();
+/** Render into `el` (scoped + isolated) via a React root, returning a live `{ update, teardown }`. Shared by
+ *  the page and widget paths so the mount plumbing exists once. `renderNode(ctx)` is re-invoked on every
+ *  `update` so a fresh `ctx` (route/caps/theme) flows both through the returned tree AND the `RuntimeProvider`
+ *  (so `useRoute`/`useSession` see it) — React reconciles the SAME root, so the ext component is NOT remounted
+ *  and its state survives. `update` calling `root.render` again is idempotent reconciliation, not a new mount. */
+function renderScoped(el, id, styles, ctx, bridge, renderNode) {
+    let root = null;
+    const tree = (c) => (_jsx(StrictMode, { children: _jsx(RuntimeProvider, { ctx: c, bridge: bridge, children: renderNode(c) }) }));
+    const teardown = mountScoped(el, { id, styles }, (mount) => {
+        root = createRoot(mount);
+        root.render(tree(ctx));
+        return () => root?.unmount();
     });
+    return {
+        // Re-render on the EXISTING root — reconciliation, never a remount (the whole point of the handle).
+        update: (next) => root?.render(tree(next)),
+        teardown,
+    };
 }
 /**
  * Build an extension's `{ mount, mountWidget }` federation entry from its `RemoteDef`. This is the ONE
@@ -40,12 +49,21 @@ function renderScoped(el, id, styles, ctx, bridge, node) {
  */
 export function defineRemote(def) {
     const { id, styles, page, widgets = {} } = def;
-    const mount = (el, ctx, bridge) => renderScoped(el, id, styles, ctx, bridge, page ? page(ctx, bridge) : null);
+    // A page returns a live `{ update, teardown }` handle: the host drives `update(ctx)` to re-supply a new
+    // `ctx.route`/caps IN PLACE (no remount — see `renderScoped`). A host that only knows the legacy teardown
+    // form still works: `teardown` is a function on the handle and the shipped `ExtHost` calls it on unmount.
+    const mount = (el, ctx, bridge) => {
+        const handle = renderScoped(el, id, styles, ctx, bridge, (c) => page ? page(c, bridge) : null);
+        return { update: handle.update, teardown: handle.teardown };
+    };
     const mountWidget = (el, ctx, bridge, widgetId) => {
         // Dispatch by id; fall back to the first declared widget for an unknown/empty id (matches the
-        // shell's `ext:<id>/<widget>` key resolution being best-effort).
+        // shell's `ext:<id>/<widget>` key resolution being best-effort). Widgets keep the legacy bare-teardown
+        // return (the shipped widget host expects `void | (() => void) | WidgetHandle`) — nav re-supply is a
+        // page concern, so we return only the teardown here and leave the widget contract untouched.
         const render = widgets[widgetId] ?? Object.values(widgets)[0];
-        return renderScoped(el, id, styles, ctx, bridge, render ? render(ctx, bridge) : null);
+        const handle = renderScoped(el, id, styles, ctx, bridge, () => render ? render(ctx, bridge) : null);
+        return handle.teardown;
     };
     return { mount, mountWidget };
 }

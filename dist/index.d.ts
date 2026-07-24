@@ -1,4 +1,5 @@
-export type { PageCtx, PageBridge, RemoteMount, HeaderStyle, HeaderLine, SidebarToggle } from "./page.js";
+export type { PageCtx, PageBridge, PageHandle, RemoteMount, HeaderStyle, HeaderLine, SidebarToggle, ExtNavItem, ExtNavChild, } from "./page.js";
+export { clampNavChildren, NAV_MAX_ITEMS, NAV_MAX_DEPTH, NAV_MAX_LABEL } from "./nav.js";
 export { ExtPage, ExtHeader } from "./ext-page.js";
 export type { ExtPageProps, Crumb } from "./ext-page.js";
 export type { WidgetField, WidgetFrame, WidgetTheme, WidgetCtx, WidgetBridge, WidgetHandle, RemoteWidgetMount, } from "./widget.js";
