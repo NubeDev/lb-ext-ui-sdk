@@ -83,6 +83,15 @@ export interface ExtNavItem {
     /** Whether this item's children are supplied at RUNTIME via `bridge.setNav`. A `dynamic` item with no
      *  children yet renders as a deliberate (childless) parent, not a broken one. Omitted ⇒ static. */
     dynamic?: boolean;
+    /** An OPTIONAL `dashboard:<id>` ref (ext-dashboard-nav scope). Present ⇒ the host renders this item as
+     *  a HOST-dashboard link (into the dashboard viewer) instead of routing `ext:<ext>/<id>` into the mount,
+     *  reusing the host's own `dashboard`-kind nav grammar. The host bounds it but never resolves the id
+     *  (rule 10). Absent ⇒ an ext-route item, exactly today's behavior. */
+    dashboard?: string;
+    /** An OPTIONAL pinned variable binding the host folds into the viewer URL as `?var-<name>=<value>`
+     *  (ext-dashboard-nav scope) — the SAME `Record<string,string>` shape the host `NavItem.vars` uses.
+     *  Only meaningful with `dashboard`. Bounded (≤32 keys, key+value ≤128 chars) at parse/clamp. */
+    vars?: Record<string, string>;
 }
 /** A live child an extension PUBLISHES under a `dynamic` nav item via `bridge.setNav` — rendered by the
  *  host in ITS sidebar (ext-nav-contribution scope). Ephemeral + per-mount: never persisted, never shared
@@ -98,6 +107,18 @@ export interface ExtNavChild {
     icon?: string;
     /** Nested grandchildren (depth ≤ 3 total, clamped). Omitted ⇒ a leaf. */
     children?: ExtNavChild[];
+    /** An OPTIONAL `dashboard:<id>` ref (ext-dashboard-nav scope). Present ⇒ the host renders this child as
+     *  a HOST-dashboard link (into the dashboard viewer, var-bound) instead of routing `ext:<ext>/<parent>/
+     *  <id>` into the mount — the CRUX case: a per-site `site-overview`, a per-meter `meter-detail`. The host
+     *  renders and routes it by kind, branching on this field's presence (never on the ext id — rule 10).
+     *  Absent ⇒ an ext-route child, exactly today's behavior. Copied verbatim by `clampNavChildren`. */
+    dashboard?: string;
+    /** An OPTIONAL pinned variable binding the host folds into the viewer URL as `?var-<name>=<value>`
+     *  (ext-dashboard-nav scope) — the SAME `Record<string,string>` shape the host `NavItem.vars` uses.
+     *  Only meaningful with `dashboard`. `clampNavChildren` bounds it (≤32 keys, key+value ≤128 chars each,
+     *  truncate-with-warning) so a runaway binding can never bloat host chrome. Keep it deterministic (a
+     *  single `site`/`meter` key) so the shell's active-highlight reverse-lookup matches a stable tuple. */
+    vars?: Record<string, string>;
 }
 /** The leashed bridge: the ONLY way a page reaches the platform — a host-mediated, caps-checked MCP
  *  call. Mirrors the WASM guest's `host.call-tool` and the widget bridge's `call`. */

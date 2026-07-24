@@ -17,7 +17,14 @@ export type {
 
 // The `bridge.setNav` caps live in ONE place — the SDK clamps the child tree (count/depth/label) before it
 // reaches host chrome (ext-nav-contribution scope). Exported so a host bridge can reuse the exact same clamp.
-export { clampNavChildren, NAV_MAX_ITEMS, NAV_MAX_DEPTH, NAV_MAX_LABEL } from "./nav.js";
+export {
+  clampNavChildren,
+  NAV_MAX_ITEMS,
+  NAV_MAX_DEPTH,
+  NAV_MAX_LABEL,
+  NAV_MAX_VARS,
+  NAV_MAX_VAR_KV,
+} from "./nav.js";
 
 // `<ExtPage>` / `<ExtHeader>` — the SDK-owned page shell whose header INHERITS the host's Header chrome
 // (Settings → Theme → Layout: Header style, Header line, Sidebar button), including a working sidebar

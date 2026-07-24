@@ -5,6 +5,11 @@ export declare const NAV_MAX_ITEMS = 200;
 export declare const NAV_MAX_DEPTH = 3;
 /** Max label length before truncation. */
 export declare const NAV_MAX_LABEL = 64;
+/** Max `vars` keys on a dashboard-carrying child before the over-cap keys are dropped (ext-dashboard-nav
+ *  scope). Mirrors the manifest `NAV_MAX_VARS` so the static + dynamic paths bound `vars` identically. */
+export declare const NAV_MAX_VARS = 32;
+/** Max length of a `vars` key OR value before it is dropped (ext-dashboard-nav scope). */
+export declare const NAV_MAX_VAR_KV = 128;
 /**
  * Clamp a `setNav` child tree to the caps, returning a fresh normalized tree. Beyond-cap nodes are
  * dropped (count/depth) or their labels sliced (length); a single `console.warn` names what was clamped.

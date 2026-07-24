@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { clampNavChildren, NAV_MAX_ITEMS, NAV_MAX_DEPTH, NAV_MAX_LABEL } from "./nav.js";
+import {
+  clampNavChildren,
+  NAV_MAX_ITEMS,
+  NAV_MAX_DEPTH,
+  NAV_MAX_LABEL,
+  NAV_MAX_VARS,
+  NAV_MAX_VAR_KV,
+} from "./nav.js";
 import type { ExtNavChild } from "./page.js";
 
 afterEach(() => vi.restoreAllMocks());
@@ -63,6 +70,49 @@ describe("clampNavChildren", () => {
     expect(d3.children).toBeUndefined();
     expect(warn).toHaveBeenCalledOnce();
     expect(NAV_MAX_DEPTH).toBe(3);
+  });
+
+  it("copies a dashboard ref + vars verbatim (ext-dashboard-nav)", () => {
+    const items: ExtNavChild[] = [
+      {
+        id: "site-1",
+        label: "Acme HQ",
+        dashboard: "dashboard:ems-site-overview",
+        vars: { site: "site-1" },
+        children: [
+          { id: "m/meter-1", label: "Meter 1" },
+          { id: "m/meter-1/board", label: "Meter 1 · Board", dashboard: "dashboard:ems-meter-detail", vars: { meter: "meter-1" } },
+        ],
+      },
+    ];
+    const out = clampNavChildren(items);
+    expect(out[0].dashboard).toBe("dashboard:ems-site-overview");
+    expect(out[0].vars).toEqual({ site: "site-1" });
+    // The ext-route child keeps no dashboard; the board child carries the meter binding.
+    expect(out[0].children![0].dashboard).toBeUndefined();
+    expect(out[0].children![1].dashboard).toBe("dashboard:ems-meter-detail");
+    expect(out[0].children![1].vars).toEqual({ meter: "meter-1" });
+  });
+
+  it("strips smuggled extra fields (whitelist copy)", () => {
+    const smuggled = { id: "a", label: "A", evil: "x", vars: { site: "s1" }, dashboard: "dashboard:d" } as unknown as ExtNavChild;
+    const out = clampNavChildren([smuggled]);
+    expect(out[0]).toEqual({ id: "a", label: "A", dashboard: "dashboard:d", vars: { site: "s1" } });
+    expect((out[0] as Record<string, unknown>).evil).toBeUndefined();
+  });
+
+  it("drops over-cap vars (count + oversized key/value) and warns", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const many: Record<string, string> = {};
+    for (let i = 0; i < NAV_MAX_VARS + 5; i++) many[`k${i}`] = "v";
+    const bigVal = "y".repeat(NAV_MAX_VAR_KV + 1);
+    const out = clampNavChildren([
+      { id: "a", label: "A", dashboard: "dashboard:d", vars: { ...many, tooLong: bigVal } },
+    ]);
+    // At most NAV_MAX_VARS keys survive, and the oversized value is dropped (never sliced to a wrong id).
+    expect(Object.keys(out[0].vars ?? {}).length).toBeLessThanOrEqual(NAV_MAX_VARS);
+    expect(out[0].vars?.tooLong).toBeUndefined();
+    expect(warn).toHaveBeenCalledOnce();
   });
 
   it("returns [] for empty/undefined input without warning", () => {

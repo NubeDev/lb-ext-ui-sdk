@@ -15,6 +15,11 @@ export const NAV_MAX_ITEMS = 200;
 export const NAV_MAX_DEPTH = 3;
 /** Max label length before truncation. */
 export const NAV_MAX_LABEL = 64;
+/** Max `vars` keys on a dashboard-carrying child before the over-cap keys are dropped (ext-dashboard-nav
+ *  scope). Mirrors the manifest `NAV_MAX_VARS` so the static + dynamic paths bound `vars` identically. */
+export const NAV_MAX_VARS = 32;
+/** Max length of a `vars` key OR value before it is dropped (ext-dashboard-nav scope). */
+export const NAV_MAX_VAR_KV = 128;
 
 /**
  * Clamp a `setNav` child tree to the caps, returning a fresh normalized tree. Beyond-cap nodes are
@@ -26,6 +31,29 @@ export function clampNavChildren(items: ExtNavChild[]): ExtNavChild[] {
   let overCount = false;
   let overDepth = false;
   let overLabel = false;
+  let overVars = false;
+
+  // Bound a child's `vars` binding (ext-dashboard-nav scope): ≤NAV_MAX_VARS keys, each key + value
+  // ≤NAV_MAX_VAR_KV chars. Over-cap keys are DROPPED (never truncated to a wrong value — a half-sliced
+  // site id would bind the wrong entity) with a warning, matching the label posture: a nav never throws.
+  const clampVars = (vars: Record<string, string> | undefined): Record<string, string> | undefined => {
+    if (!vars) return undefined;
+    const out: Record<string, string> = {};
+    let kept = 0;
+    for (const [k, v] of Object.entries(vars)) {
+      if (kept >= NAV_MAX_VARS) {
+        overVars = true;
+        break;
+      }
+      if (typeof k !== "string" || typeof v !== "string" || !k || k.length > NAV_MAX_VAR_KV || v.length > NAV_MAX_VAR_KV) {
+        overVars = true;
+        continue;
+      }
+      out[k] = v;
+      kept++;
+    }
+    return kept > 0 ? out : undefined;
+  };
 
   const walk = (nodes: ExtNavChild[] | undefined, depth: number): ExtNavChild[] => {
     if (!nodes || nodes.length === 0) return [];
@@ -47,6 +75,12 @@ export function clampNavChildren(items: ExtNavChild[]): ExtNavChild[] {
       }
       const child: ExtNavChild = { id: n.id, label };
       if (n.icon) child.icon = n.icon;
+      // A dashboard-carrying child opens the HOST viewer instead of the mount (ext-dashboard-nav scope) —
+      // copy the ref + bounded vars verbatim so they survive the clamp; a child smuggling extra fields is
+      // still stripped to the known set (the whitelist copy below is the reach/payload guard).
+      if (typeof n.dashboard === "string" && n.dashboard) child.dashboard = n.dashboard;
+      const vars = clampVars(n.vars);
+      if (vars) child.vars = vars;
       const kids = walk(n.children, depth + 1);
       if (kids.length > 0) child.children = kids;
       out.push(child);
@@ -56,11 +90,12 @@ export function clampNavChildren(items: ExtNavChild[]): ExtNavChild[] {
 
   const clamped = walk(items, 1);
 
-  if (overCount || overDepth || overLabel) {
+  if (overCount || overDepth || overLabel || overVars) {
     const reasons = [
       overCount && `>${NAV_MAX_ITEMS} items`,
       overDepth && `depth >${NAV_MAX_DEPTH}`,
       overLabel && `label >${NAV_MAX_LABEL} chars`,
+      overVars && `vars >${NAV_MAX_VARS} keys or key/value >${NAV_MAX_VAR_KV} chars`,
     ]
       .filter(Boolean)
       .join(", ");
