@@ -39,4 +39,19 @@ export declare function useRoute(): string;
  *  the ext re-renders from the resulting `ctx.route` (one direction of truth — the URL). Returns a stable
  *  no-op when the host predates nav contribution (`ctx.onNavigate` absent), so an ext can always call it. */
 export declare function useNavigate(): (path: string) => void;
+/** Which of this extension's nav nodes the host currently renders EXPANDED, as ext-relative refs
+ *  (`"networks"`, `"networks/plant-a"` — the same grammar `useRoute()` speaks). The host→ext half of
+ *  lazy nav: publish a node with `hasChildren` and no `children`, and when the user opens it its ref
+ *  shows up here — fetch that branch and republish through `setNav`.
+ *
+ *  A STATE, not an event, deliberately: an ext page can be unmounted while the host still renders its
+ *  retained tree, so an expand event fired at a dead page would simply be lost. Because this is a set
+ *  re-supplied on every `update(ctx)` AND stamped on the first `ctx` of a fresh mount, a page that was
+ *  not running when the user expanded still learns which branches are open the moment it mounts.
+ *
+ *  FAIL-SAFE: a host predating lazy nav omits `ctx.navExpanded` ⇒ `[]`, so an ext that loads lazily
+ *  simply publishes nothing extra (and one that publishes eagerly never calls this at all). Returns a
+ *  SHARED empty array in that case, so the identity is stable across renders and it is safe to use
+ *  directly as a `useEffect`/`useMemo` dep. */
+export declare function useNavExpanded(): string[];
 //# sourceMappingURL=runtime.d.ts.map

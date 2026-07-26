@@ -1,6 +1,6 @@
 {
   "name": "@nube/ext-ui-sdk",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "description": "The authoritative UI contract for Lazybones extensions: the page mount, the widget (frames-in) contract, and the Vite build preset.",
   "license": "MIT",
   "repository": {
@@ -49,8 +49,12 @@
     "react-dom": "^18 || ^19"
   },
   "peerDependenciesMeta": {
-    "react": { "optional": true },
-    "react-dom": { "optional": true }
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@testing-library/react": "^16.0.0",

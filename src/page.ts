@@ -74,6 +74,27 @@ export interface PageCtx {
    *  ADDITIVE + FAIL-SAFE: a host predating nav contribution omits it ⇒ a no-op (the ext stays on its
    *  current view). Read via `useNavigate()`. */
   onNavigate?: (path: string) => void;
+  /** Which of the extension's nav nodes the host currently renders EXPANDED, as EXT-RELATIVE refs — the
+   *  same grammar `route` uses (`"networks"`, `"networks/plant-a"`), never the host's own `ext:<id>/…`
+   *  form. This is the host→ext half of lazy nav (ext-nav-lazy-children scope): an extension marks a
+   *  published child `hasChildren` without giving its branch, the host renders it collapsed with a
+   *  disclosure caret, and when the user opens it that node appears HERE — the extension then fetches
+   *  that branch and republishes through `setNav`.
+   *
+   *  It is deliberately a **state, not an event**, and that is what makes the hard case work. An
+   *  extension page can be unmounted while the host still renders its retained tree, so an expand
+   *  "event" fired at an unmounted page would simply be lost. A set re-supplied on every `update(ctx)`
+   *  — and stamped on the FIRST `ctx` of a fresh mount — means a page that was not running when the
+   *  user expanded still learns, on mount, exactly which branches are open and can fill them. Nothing
+   *  to queue, nothing to replay, no ordering to get wrong.
+   *
+   *  Contract notes: the refs are the extension's OWN ids composed by the host, echoed back verbatim —
+   *  the host interprets none of them (rule 10). The set may name a node the extension no longer
+   *  publishes (its tree shrank); ignore those. It may be non-empty on the very first render, which is
+   *  the point. Re-supplied LIVE through `update(ctx)`, never a remount. ADDITIVE + FAIL-SAFE: a host
+   *  predating lazy nav omits it ⇒ `[]`, and an extension that publishes eagerly (never setting
+   *  `hasChildren`) is unaffected either way. Read via `useNavExpanded()`. */
+  navExpanded?: string[];
 }
 
 /** A top-level nav destination an extension DECLARES in its manifest `[[ui.nav]]` block — a lens the host
@@ -116,8 +137,27 @@ export interface ExtNavChild {
   label: string;
   /** A lucide icon name (opaque). Omitted ⇒ no icon. */
   icon?: string;
-  /** Nested grandchildren (depth ≤ 3 total, clamped). Omitted ⇒ a leaf. */
+  /** Nested grandchildren (depth ≤ 3 total, clamped). Omitted ⇒ a leaf — UNLESS `hasChildren` says
+   *  otherwise. */
   children?: ExtNavChild[];
+  /** "This node HAS children you have not been given yet" (ext-nav-lazy-children scope). Set it on a
+   *  node whose branch is expensive or unbounded — a network whose devices you do not want to publish
+   *  until someone looks. The host renders such a node as an expandable parent with a disclosure caret,
+   *  **initially collapsed**, and when the user opens it the node's ref appears in `ctx.navExpanded`;
+   *  the extension fetches that branch and republishes the whole tree through `setNav`, with `children`
+   *  filled in.
+   *
+   *  Why a separate field rather than an empty `children: []`: an empty array is indistinguishable from
+   *  a leaf, and a leaf must keep rendering as a leaf — the whole reported bug was a caret that could
+   *  not appear until the children it advertises already existed. This says the branch exists WITHOUT
+   *  claiming to know its contents.
+   *
+   *  Ignored once `children` is non-empty (the real branch always wins over the promise of one), so an
+   *  extension can set it unconditionally and let the arrival of children retire it. Copied verbatim by
+   *  `clampNavChildren`. ADDITIVE + FAIL-SAFE: a host predating lazy nav ignores the field and simply
+   *  renders the node as a leaf until the extension publishes its children — i.e. exactly today's
+   *  eager behaviour, which is why an extension may adopt this before every host has upgraded. */
+  hasChildren?: boolean;
   /** An OPTIONAL `dashboard:<id>` ref (ext-dashboard-nav scope). Present ⇒ the host renders this child as
    *  a HOST-dashboard link (into the dashboard viewer, var-bound) instead of routing `ext:<ext>/<parent>/
    *  <id>` into the mount — the CRUX case: a per-site `site-overview`, a per-meter `meter-detail`. The host
@@ -143,7 +183,13 @@ export interface PageBridge {
    *  here (the host cannot filter for the extension). The SDK CLAMPS the tree (`clampNavChildren`: ≤200
    *  items, depth ≤3, label ≤64 chars — over-cap truncates with a console warning, never throws) so a
    *  runaway nav can never break the page. ADDITIVE + FAIL-SAFE — a host predating nav contribution omits
-   *  it, and the extension then simply has no dynamic children. */
+   *  it, and the extension then simply has no dynamic children.
+   *
+   *  LAZY BRANCHES (ext-nav-lazy-children scope): publishing the whole tree eagerly is what forces an
+   *  extension into the `NAV_MAX_ITEMS` corner (publish only the open branch, cap at N, append "… and N
+   *  more"). Instead, mark a node `hasChildren` and give it no `children`; when the user opens it, its
+   *  ref appears in `ctx.navExpanded` and you call `setNav` AGAIN with that branch filled in. Publishes
+   *  remain whole-tree replaces — build the full tree each time from what you have loaded so far. */
   setNav?: (items: ExtNavChild[]) => void;
 }
 

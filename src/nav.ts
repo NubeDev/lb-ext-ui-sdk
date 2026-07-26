@@ -83,6 +83,13 @@ export function clampNavChildren(items: ExtNavChild[]): ExtNavChild[] {
       if (vars) child.vars = vars;
       const kids = walk(n.children, depth + 1);
       if (kids.length > 0) child.children = kids;
+      // "I have children you haven't been given" (ext-nav-lazy-children scope) — copied verbatim like
+      // `dashboard`/`vars`, but ONLY while the branch is genuinely still absent. Once real children
+      // survived the clamp the flag has done its job and is DROPPED: keeping it would leave the host
+      // holding two answers to "does this node have more", and the one it can actually see is the true
+      // one. A node whose children were clamped away by DEPTH keeps the flag, which is right — those
+      // children do exist, and the host should still offer to ask for them.
+      if (n.hasChildren === true && kids.length === 0) child.hasChildren = true;
       out.push(child);
     }
     return out;

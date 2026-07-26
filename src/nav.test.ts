@@ -115,6 +115,46 @@ describe("clampNavChildren", () => {
     expect(warn).toHaveBeenCalledOnce();
   });
 
+  // ── `hasChildren` — "I have children you haven't been given" (ext-nav-lazy-children scope) ────────
+
+  it("copies `hasChildren` verbatim on a node with no children", () => {
+    const out = clampNavChildren([{ id: "n1", label: "Plant A", hasChildren: true }]);
+    expect(out[0]).toEqual({ id: "n1", label: "Plant A", hasChildren: true });
+  });
+
+  it("DROPS `hasChildren` once real children survived the clamp (the branch beats the promise)", () => {
+    // Keeping both would leave the host holding two answers to "does this node have more"; the one it
+    // can actually see wins, and the flag has done its job.
+    const out = clampNavChildren([
+      { id: "n1", label: "Plant A", hasChildren: true, children: [{ id: "d1", label: "Chiller 1" }] },
+    ]);
+    expect(out[0].children).toHaveLength(1);
+    expect(out[0].hasChildren).toBeUndefined();
+  });
+
+  it("KEEPS `hasChildren` when the children were clamped away by depth", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    // Sit the flagged node at exactly NAV_MAX_DEPTH, so ITS children fall over the edge and are dropped
+    // — but those children DO exist, so the node must keep offering to be asked.
+    let node: ExtNavChild = { id: "deep", label: "Deep", hasChildren: true, children: [{ id: "x", label: "X" }] };
+    for (let d = 0; d < NAV_MAX_DEPTH - 1; d++) node = { id: `l${d}`, label: `L${d}`, children: [node] };
+    const out = clampNavChildren([node]);
+    let cur = out[0];
+    while (cur.children?.length) cur = cur.children[0];
+    expect(cur.hasChildren).toBe(true);
+    expect(cur.children).toBeUndefined();
+    expect(warn).toHaveBeenCalledOnce();
+  });
+
+  it("ignores a falsy/garbage `hasChildren` (only an explicit true is a promise)", () => {
+    const out = clampNavChildren([
+      { id: "a", label: "A", hasChildren: false },
+      { id: "b", label: "B", hasChildren: "yes" as unknown as boolean },
+    ]);
+    expect(out[0].hasChildren).toBeUndefined();
+    expect(out[1].hasChildren).toBeUndefined();
+  });
+
   it("returns [] for empty/undefined input without warning", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     expect(clampNavChildren([])).toEqual([]);
