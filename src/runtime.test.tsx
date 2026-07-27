@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
+import { useEffect } from "react";
 import { act } from "@testing-library/react";
 import { createRoot } from "react-dom/client";
 
 import { defineRemote } from "./remote.js";
-import { useSession, useMcpClient, useCaps, useIsAdmin } from "./runtime.js";
-import type { PageBridge, PageCtx } from "./page.js";
+import { useSession, useMcpClient, useCaps, useIsAdmin, useNavExpanded } from "./runtime.js";
+import type { PageBridge, PageCtx, PageHandle } from "./page.js";
 import type { WidgetCtx } from "./widget.js";
 
 // See remote.test.tsx: `createRoot().render()` commits asynchronously, so mounts are wrapped in `act()`.
@@ -127,6 +128,63 @@ describe("/runtime — in-page session + MCP hooks fed by defineRemote", () => {
 
     expect(seen?.caps).toEqual(["mcp:ems.access.grant:call"]);
     expect(seen?.isAdmin).toBe(true);
+  });
+
+  // ── `useNavExpanded()` — the host->ext half of lazy nav (ext-nav-lazy-children scope) ─────────────
+
+  it("useNavExpanded reads the host's expanded set and re-supplies it through update(ctx) in place", () => {
+    let mountCount = 0;
+    let seen: string[] = [];
+    function Page() {
+      seen = useNavExpanded();
+      useEffect(() => {
+        mountCount += 1;
+      }, []);
+      return <div data-testid="n">{seen.join("|") || "none"}</div>;
+    }
+    const bridge: PageBridge = { call: async () => ({}) as never };
+    const { mount } = defineRemote({ id: "lazy-nav", page: () => <Page /> });
+    const el = document.createElement("div");
+    // THE CASE THAT MOTIVATES THE DESIGN: the user expanded a branch while this page was NOT mounted.
+    // Because the signal is a STATE and not an event, the very first ctx already carries it — there is
+    // nothing to have missed and nothing to replay.
+    const handle = mountAct(() =>
+      mount(el, { workspace: "acme", navExpanded: ["networks/plant-a"] }, bridge),
+    ) as PageHandle;
+    const text = () => el.querySelector("[data-testid='n']")?.textContent;
+    expect(text()).toBe("networks/plant-a");
+    const baseline = mountCount;
+
+    // A further expand arrives through the live re-supply — in place, NOT a remount (page state, scroll
+    // and in-flight fetches all survive, exactly as for `route`).
+    act(() => handle.update?.({ workspace: "acme", navExpanded: ["networks/plant-a", "networks/plant-b"] }));
+    expect(text()).toBe("networks/plant-a|networks/plant-b");
+    expect(mountCount).toBe(baseline);
+
+    // Collapsing everything is just a smaller set.
+    act(() => handle.update?.({ workspace: "acme", navExpanded: [] }));
+    expect(text()).toBe("none");
+    expect(mountCount).toBe(baseline);
+  });
+
+  it("useNavExpanded fails safe to a STABLE [] on a host predating lazy nav", () => {
+    // An old host omits `ctx.navExpanded`. The ext must not crash, and — because an ext will dep an
+    // effect on this — the fallback identity must be stable across renders or every render refetches.
+    const seen: string[][] = [];
+    function Page() {
+      seen.push(useNavExpanded());
+      return <div>ok</div>;
+    }
+    const bridge: PageBridge = { call: async () => ({}) as never };
+    const { mount } = defineRemote({ id: "lazy-nav-old-host", page: () => <Page /> });
+    const el = document.createElement("div");
+    const handle = mountAct(() => mount(el, { workspace: "acme" }, bridge)) as PageHandle;
+    act(() => handle.update?.({ workspace: "acme", route: "networks" }));
+
+    expect(seen.length).toBeGreaterThan(1);
+    expect(seen[0]).toEqual([]);
+    // Same array identity every time — safe as a useEffect dep.
+    for (const s of seen) expect(s).toBe(seen[0]);
   });
 
   it("a hook rendered outside a mounted remote throws a programming error", () => {

@@ -19,7 +19,41 @@ the private `lb` repo**.
 | `defineRemote()`, `RemoteDef`, `Remote`, `PageRender`, `WidgetRender` | The **federation entry factory** — the authoritative way to build a `remoteEntry.ts`. Give it `{ id, styles, page, widgets }`; it returns `{ mount, mountWidget }` with the scoped mount + React root + widget-dispatch handled. An ext's `remoteEntry.ts` is then generated boilerplate — no hand-written mount plumbing. |
 | `defineExtConfig()`, `REACT_EXTERNALS` (from `@nube/ext-ui-sdk/vite`) | The Vite preset: lib-mode ESM `remoteEntry.js` with React externalised (the host import-map / rubix-cube pattern) and CSS kept out of the host `<head>`. |
 | `mountScoped()`, `ScopedRender`, `MountScopedOptions` | The lower-level **scoped mount + style** primitive `defineRemote` is built on: wraps the ext in a scoped root inside the host `el` and attaches its stylesheet **there, never `document.head`**. Reach for it directly only if you don't use React. |
+| `clampNavChildren()`, `NAV_MAX_*` | The **dynamic nav** caps (`bridge.setNav`): count, depth, label, `vars`. One vocabulary every host shares. See *Lazy nav branches* below. |
 | `extTailwindPreset()`, `EXT_ROOT_ATTR` (from `@nube/ext-ui-sdk/tailwind`) | The Tailwind preset that makes the compiled CSS non-leaky: **Preflight OFF** + every utility **scoped under `[data-ext-root]`**. |
+
+## Lazy nav branches
+
+An extension publishes live sidebar children with `bridge.setNav`. Publishing the **whole** tree eagerly
+is what forces you into the `NAV_MAX_ITEMS` corner — publish only the open branch, cap at N, append
+"… and N more". Two additive fields let you publish a shape instead:
+
+| Field | Direction | Means |
+|---|---|---|
+| `ExtNavChild.hasChildren` | ext → host | "This node HAS children I haven't given you." The host renders it as an expandable parent with a caret, **initially collapsed**. |
+| `PageCtx.navExpanded` (`useNavExpanded()`) | host → ext | The ext-relative refs the host currently renders **expanded** (`"networks/plant-a"`) — same grammar as `ctx.route`. |
+
+```tsx
+const expanded = useNavExpanded();                    // e.g. ["networks/plant-a"]
+const devices = useDevicesFor(expanded);              // fetch only the open branches
+useEffect(() => {
+  bridge.setNav?.(networks.map((n) => ({
+    id: n.id,
+    label: n.name,
+    // Say the branch exists; fill it in only once someone opens it.
+    ...(devices[n.id] ? { children: devices[n.id] } : { hasChildren: true }),
+  })));
+}, [bridge, networks, devices]);
+```
+
+`navExpanded` is a **state, not an event**, and that is the point: a page can be unmounted while the host
+still shows its retained tree, so an expand *event* fired at a dead page would be lost. A set re-supplied
+on every `update(ctx)` — and stamped on the **first** `ctx` of a fresh mount — means a page that was not
+running when the user expanded still learns which branches are open the moment it mounts.
+
+Both are additive and fail-safe in both directions: an older host ignores `hasChildren` and omits
+`navExpanded` (so `useNavExpanded()` is `[]` and the ext just publishes eagerly, as today), and an
+extension that never sets either is completely unaffected.
 
 ## Theme & CSS (isolation the SDK owns)
 

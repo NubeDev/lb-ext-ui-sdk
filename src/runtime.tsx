@@ -87,6 +87,28 @@ export function useNavigate(): (path: string) => void {
   return useRuntime("useNavigate").ctx.onNavigate ?? noop;
 }
 
+/** Which of this extension's nav nodes the host currently renders EXPANDED, as ext-relative refs
+ *  (`"networks"`, `"networks/plant-a"` — the same grammar `useRoute()` speaks). The host→ext half of
+ *  lazy nav: publish a node with `hasChildren` and no `children`, and when the user opens it its ref
+ *  shows up here — fetch that branch and republish through `setNav`.
+ *
+ *  A STATE, not an event, deliberately: an ext page can be unmounted while the host still renders its
+ *  retained tree, so an expand event fired at a dead page would simply be lost. Because this is a set
+ *  re-supplied on every `update(ctx)` AND stamped on the first `ctx` of a fresh mount, a page that was
+ *  not running when the user expanded still learns which branches are open the moment it mounts.
+ *
+ *  FAIL-SAFE: a host predating lazy nav omits `ctx.navExpanded` ⇒ `[]`, so an ext that loads lazily
+ *  simply publishes nothing extra (and one that publishes eagerly never calls this at all). Returns a
+ *  SHARED empty array in that case, so the identity is stable across renders and it is safe to use
+ *  directly as a `useEffect`/`useMemo` dep. */
+export function useNavExpanded(): string[] {
+  return useRuntime("useNavExpanded").ctx.navExpanded ?? EMPTY;
+}
+
+/** A shared stable empty array so `useNavExpanded()` has a referentially stable fallback on an old host
+ *  (a fresh `[]` each render would re-fire every effect that deps on it). */
+const EMPTY: string[] = [];
+
 /** A shared stable no-op so `useNavigate()` returns a referentially stable fn on an old host (no re-renders
  *  from a fresh closure identity each call). */
 function noop(): void {}
