@@ -111,14 +111,29 @@ export function defineRemote(def: RemoteDef): Remote {
 
   const mountWidget: RemoteWidgetMount = (el, ctx, bridge, widgetId) => {
     // Dispatch by id; fall back to the first declared widget for an unknown/empty id (matches the
-    // shell's `ext:<id>/<widget>` key resolution being best-effort). Widgets keep the legacy bare-teardown
-    // return (the shipped widget host expects `void | (() => void) | WidgetHandle`) — nav re-supply is a
-    // page concern, so we return only the teardown here and leave the widget contract untouched.
+    // shell's `ext:<id>/<widget>` key resolution being best-effort).
+    //
+    // A widget returns the SAME live `{ update, teardown }` handle a page does, and the render callback
+    // takes the CURRENT ctx (`c`), not the mount-time closure.
+    //
+    // Both halves are load-bearing, and getting either wrong silently breaks every `data = true` v3 tile:
+    // the host mounts a tile BEFORE its `viz.query` frames resolve, then pushes them in via `update(ctx)`
+    // (see the host's ExtWidget.tsx "Live frames-in" effect, whose whole design is that frames flow
+    // through `update` and do NOT re-mount). Returning only `teardown` made that push a no-op, and closing
+    // over the mount-time `ctx` meant even a delivered update re-rendered the stale one — so `ctx.data`
+    // stayed frozen at its empty mount-time value and every data tile rendered its ABSENT state forever,
+    // no matter how much real data arrived. The same freeze hit `ctx.theme` (v4), which this file's own
+    // WidgetCtx doc says a canvas widget "recolors from ... on every theme change via update(ctx)".
+    //
+    // This was found by the `nabers` live-browser e2e — see rubix-ai-extensions
+    // docs/debugging/frontend/ext-widget-data-frames-never-reach-the-tile.md. It is not observable from a
+    // unit test, which mounts the component with a ready-made ctx and never exercises the host's
+    // mount-then-update lifecycle.
     const render = widgets[widgetId] ?? Object.values(widgets)[0];
-    const handle = renderScoped(el, id, styles, ctx as PageCtx, bridge as PageBridge, () =>
-      render ? render(ctx, bridge) : null,
+    const handle = renderScoped(el, id, styles, ctx as PageCtx, bridge as PageBridge, (c) =>
+      render ? render(c as WidgetCtx, bridge) : null,
     );
-    return handle.teardown;
+    return { update: handle.update, teardown: handle.teardown };
   };
 
   return { mount, mountWidget };

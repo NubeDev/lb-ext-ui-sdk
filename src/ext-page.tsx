@@ -122,7 +122,28 @@ export function ExtPage({
       style={{ display: "flex", flexDirection: "column", height: "100%", minWidth: 0, color: "hsl(var(--foreground))", background: "hsl(var(--background))" }}
     >
       <ExtHeader style={style} line={line} trail={trail} workspace={workspace} icon={icon} description={description} actions={actions} onToggleSidebar={toggle} />
-      <div style={{ display: "flex", minHeight: 0, flex: 1, flexDirection: "column" }}>{children}</div>
+      {/* THE page's scroll region — the one and only one. The host mounts an ext into a BOUNDED,
+          non-scrolling box (`overflow-hidden`), so `height: 100%` above resolves against the viewport and
+          this `flex: 1; minHeight: 0` body is what overflows. Scrolling belongs here, at the layer that
+          already owns the header/body split, for the same reason the header shape does: an ext that
+          hand-rolls its own `overflow-y-auto` wrapper nests a second scroller inside this one, and a
+          nested scroller under an ALSO-scrolling ancestor has no bounded height to scroll within — so the
+          section grows instead and the ancestor scrolls the whole page, header and all. Owning it here
+          means every ext gets a pinned header + scrolling body with zero ext-side code, and an ext cannot
+          get it wrong. `WebkitOverflowScrolling` keeps momentum scrolling native on iOS, where a
+          page-level scroll would otherwise rubber-band the whole shell. */}
+      <div
+        style={{
+          display: "flex",
+          minHeight: 0,
+          flex: 1,
+          flexDirection: "column",
+          overflowY: "auto",
+          WebkitOverflowScrolling: "touch",
+        }}
+      >
+        {children}
+      </div>
     </section>
   );
 }

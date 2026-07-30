@@ -38,7 +38,14 @@ export function ExtPage({ title, crumbs, workspace, icon, description, actions, 
     // The toggle button shows only when the member left it `shown` AND the host actually provided a toggle
     // callback (nothing to toggle in a bare preview) — exactly the host slim header's condition.
     const toggle = sidebarToggle === "shown" ? onToggleSidebar : undefined;
-    return (_jsxs("section", { style: { display: "flex", flexDirection: "column", height: "100%", minWidth: 0, color: "hsl(var(--foreground))", background: "hsl(var(--background))" }, children: [_jsx(ExtHeader, { style: style, line: line, trail: trail, workspace: workspace, icon: icon, description: description, actions: actions, onToggleSidebar: toggle }), _jsx("div", { style: { display: "flex", minHeight: 0, flex: 1, flexDirection: "column" }, children: children })] }));
+    return (_jsxs("section", { style: { display: "flex", flexDirection: "column", height: "100%", minWidth: 0, color: "hsl(var(--foreground))", background: "hsl(var(--background))" }, children: [_jsx(ExtHeader, { style: style, line: line, trail: trail, workspace: workspace, icon: icon, description: description, actions: actions, onToggleSidebar: toggle }), _jsx("div", { style: {
+                    display: "flex",
+                    minHeight: 0,
+                    flex: 1,
+                    flexDirection: "column",
+                    overflowY: "auto",
+                    WebkitOverflowScrolling: "touch",
+                }, children: children })] }));
 }
 /** The header itself — the SAME three shapes the host renders (`slim` / `band` / `breadcrumbs`), so an ext
  *  page is visually indistinguishable from a host page at any setting. Exported for the rare host/tooling

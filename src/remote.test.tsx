@@ -6,7 +6,7 @@ import { act } from "@testing-library/react";
 import { defineRemote } from "./remote.js";
 import type { PageBridge, PageCtx, PageHandle } from "./page.js";
 import { useRoute } from "./runtime.js";
-import type { WidgetBridge, WidgetCtx } from "./widget.js";
+import type { WidgetBridge, WidgetCtx, WidgetHandle } from "./widget.js";
 
 const ctx: PageCtx = { workspace: "acme" };
 const bridge: PageBridge = { call: async () => ({}) as never };
@@ -136,6 +136,62 @@ describe("defineRemote — SDK-owned federation entry", () => {
     const [renders, route] = (el.querySelector("[data-testid='renders']")?.textContent ?? "").split(":");
     expect(route).toBe("b");
     expect(Number(renders)).toBeGreaterThanOrEqual(2);
+    act(() => handle.teardown!());
+  });
+
+  it("mountWidget returns a live handle whose update(ctx) re-renders with the NEW ctx", () => {
+    // REGRESSION (rubix-ai-extensions docs/debugging/frontend/ext-widget-data-frames-never-reach-the-tile.md).
+    // The host mounts a `data = true` v3 tile BEFORE its viz.query frames resolve, then pushes them in
+    // via `update(ctx)` — by design, so live data never re-mounts the tile. Two bugs made that a no-op:
+    // `mountWidget` returned only `teardown` (so the host had no `update` to call), and its render
+    // callback closed over the MOUNT-TIME ctx (so even a delivered update re-rendered the stale one).
+    // Net effect: `ctx.data` was frozen empty and every data tile rendered its ABSENT state forever.
+    const { mountWidget } = defineRemote({
+      id: "nabers",
+      widgets: {
+        donut: (c: WidgetCtx) => <span>{String(c.data?.[0]?.fields?.[0]?.values?.[0] ?? "absent")}</span>,
+      },
+    });
+    const el = document.createElement("div");
+
+    // Mount with NO data — exactly what the host does before frames land.
+    const handle = mountAct(() => mountWidget(el, wctx, wbridge, "donut")) as WidgetHandle;
+    expect(el.textContent).toContain("absent");
+
+    // The handle must actually carry `update` — returning a bare teardown is the bug.
+    expect(typeof handle?.update).toBe("function");
+
+    // Frames arrive. The tile must now render THEM, not the stale mount-time ctx.
+    act(() =>
+      handle.update!({
+        ...wctx,
+        data: [{ refId: "A", fields: [{ name: "rei", values: [0.16] }] }],
+      }),
+    );
+    expect(el.textContent).toContain("0.16");
+    expect(el.textContent).not.toContain("absent");
+
+    act(() => handle.teardown!());
+  });
+
+  it("a widget's update(ctx) reconciles in place rather than remounting", () => {
+    // The same in-place guarantee the page path has: a live data tile must not lose component state on
+    // every new sample, or a tile with any internal state resets on every tick.
+    function Tile({ ctx }: { ctx: WidgetCtx }) {
+      const renders = useRef(0);
+      renders.current += 1;
+      return <div data-testid="t">{`${renders.current}:${ctx.theme?.accent ?? "-"}`}</div>;
+    }
+    const { mountWidget } = defineRemote({
+      id: "nabers",
+      widgets: { donut: (c: WidgetCtx) => <Tile ctx={c} /> },
+    });
+    const el = document.createElement("div");
+    const handle = mountAct(() => mountWidget(el, wctx, wbridge, "donut")) as WidgetHandle;
+    act(() => handle.update!({ ...wctx, theme: { accent: "red" } as WidgetCtx["theme"] }));
+    const [renders, accent] = (el.querySelector("[data-testid='t']")?.textContent ?? "").split(":");
+    expect(accent).toBe("red");
+    expect(Number(renders)).toBeGreaterThanOrEqual(2); // a remount would have reset to 1
     act(() => handle.teardown!());
   });
 });

@@ -51,6 +51,29 @@ describe("/ext-page — header inherits the host's Header chrome (inherit-only)"
     expect(hasBandWash(el)).toBe(false);
   });
 
+  // The scroll contract. The SDK owns the page's ONE scroll region so the header stays pinned and an ext
+  // never hand-rolls a second, nested scroller (which, under a scrolling host ancestor, has no bounded
+  // height and silently hands the whole page — header included — to the ancestor's scrollbar).
+  describe("scroll region (the SDK owns it, so the header pins)", () => {
+    it("scrolls the body, not the section: the header is a non-shrinking sibling of the scroller", () => {
+      const el = mountPage({ workspace: "acme" });
+      const section = el.querySelector("section") as HTMLElement;
+      const header = section.querySelector("header") as HTMLElement;
+      const body = el.querySelector('[data-testid="body"]')?.parentElement as HTMLElement;
+
+      // The section is the bounded box — it must NOT scroll, or the header scrolls away with the content.
+      expect(section.style.overflowY).not.toBe("auto");
+      expect(section.style.height).toBe("100%");
+      // The header is pinned by being unshrinkable, outside the scroller.
+      expect(header.style.flexShrink).toBe("0");
+      expect(body.contains(header)).toBe(false);
+      // The body is the scroller, and `minHeight: 0` is what lets it actually overflow inside a flex column.
+      expect(body.style.overflowY).toBe("auto");
+      expect(body.style.minHeight).toBe("0px");
+      expect(body.style.flex).toContain("1");
+    });
+  });
+
   it("renders the band shape when the member picked band", () => {
     expect(hasBandWash(mountPage({ workspace: "acme", headerStyle: "band" }))).toBe(true);
   });
