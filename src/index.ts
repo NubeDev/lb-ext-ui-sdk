@@ -13,12 +13,14 @@ export type {
   SidebarToggle,
   ExtNavItem,
   ExtNavChild,
+  ExtNavPublish,
 } from "./page.js";
 
 // The `bridge.setNav` caps live in ONE place — the SDK clamps the child tree (count/depth/label) before it
 // reaches host chrome (ext-nav-contribution scope). Exported so a host bridge can reuse the exact same clamp.
 export {
   clampNavChildren,
+  clampNavPublish,
   NAV_MAX_ITEMS,
   NAV_MAX_DEPTH,
   NAV_MAX_LABEL,

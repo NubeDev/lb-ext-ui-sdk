@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   clampNavChildren,
+  clampNavPublish,
   NAV_MAX_ITEMS,
   NAV_MAX_DEPTH,
   NAV_MAX_LABEL,
@@ -160,5 +161,41 @@ describe("clampNavChildren", () => {
     expect(clampNavChildren([])).toEqual([]);
     expect(clampNavChildren(undefined as unknown as ExtNavChild[])).toEqual([]);
     expect(warn).not.toHaveBeenCalled();
+  });
+});
+
+// ── The owner-keyed publish ────────────────────────────────────────────────────────────────────────
+//
+// A manifest may mark more than one `[[ui.nav]]` item `dynamic`. The clamp has to bound the whole
+// PUBLISH, not each owner separately: every node lands in one sidebar, so one budget is the honest
+// model — clamping per owner would let N owners publish N×200 rows and blow the cap the host relies on.
+describe("clampNavPublish", () => {
+  it("keeps each owner's subtree under its own key", () => {
+    const out = clampNavPublish({
+      one: [{ id: "a", label: "A" }],
+      two: [{ id: "b", label: "B" }],
+    });
+    expect(Object.keys(out)).toEqual(["one", "two"]);
+    expect(out.one).toHaveLength(1);
+    expect(out.two[0].id).toBe("b");
+  });
+
+  it("spends ONE shared item budget across every owner, in insertion order", () => {
+    const many = (n: number, p: string) =>
+      Array.from({ length: n }, (_, i) => ({ id: `${p}${i}`, label: `${p}${i}` }));
+    const out = clampNavPublish({ first: many(NAV_MAX_ITEMS, "a"), second: many(10, "b") });
+    // The first owner takes the whole budget; the second is truncated rather than granted a second one.
+    expect(out.first).toHaveLength(NAV_MAX_ITEMS);
+    expect(out.second).toHaveLength(0);
+  });
+
+  it("clamps labels and depth per node exactly as the flat form does", () => {
+    const out = clampNavPublish({ one: [{ id: "a", label: "x".repeat(NAV_MAX_LABEL + 10) }] });
+    expect(out.one[0].label).toHaveLength(NAV_MAX_LABEL);
+  });
+
+  it("tolerates a non-list value rather than throwing (a nav is chrome)", () => {
+    const out = clampNavPublish({ one: undefined as unknown as [] });
+    expect(out.one).toEqual([]);
   });
 });
