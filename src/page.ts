@@ -172,6 +172,17 @@ export interface ExtNavChild {
   vars?: Record<string, string>;
 }
 
+/** Published children keyed by the DECLARED `[[ui.nav]]` item each subtree hangs under.
+ *
+ *  The manifest lets an extension mark ANY number of items `dynamic`, but the wire originally carried
+ *  one flat list per extension with no field naming its owner — so a host could only bind it to the
+ *  first `dynamic` item, and every other declared item rendered a caret over nothing. This is the
+ *  field that was missing.
+ *
+ *  Keys are the extension's OWN declared ids, echoed back by the host and resolved by neither side. A
+ *  key naming an item that is not `dynamic` (or does not exist) simply renders nowhere. */
+export type ExtNavPublish = Record<string, ExtNavChild[]>;
+
 /** The leashed bridge: the ONLY way a page reaches the platform — a host-mediated, caps-checked MCP
  *  call. Mirrors the WASM guest's `host.call-tool` and the widget bridge's `call`. */
 export interface PageBridge {
@@ -189,8 +200,13 @@ export interface PageBridge {
    *  extension into the `NAV_MAX_ITEMS` corner (publish only the open branch, cap at N, append "… and N
    *  more"). Instead, mark a node `hasChildren` and give it no `children`; when the user opens it, its
    *  ref appears in `ctx.navExpanded` and you call `setNav` AGAIN with that branch filled in. Publishes
-   *  remain whole-tree replaces — build the full tree each time from what you have loaded so far. */
-  setNav?: (items: ExtNavChild[]) => void;
+   *  remain whole-tree replaces — build the full tree each time from what you have loaded so far.
+   *
+   *  SEVERAL DYNAMIC OWNERS: a manifest may mark more than one `[[ui.nav]]` item `dynamic`. Pass an
+   *  [`ExtNavPublish`] map to say which declared item each subtree hangs under; a bare array keeps
+   *  meaning "the first `dynamic` item", exactly as before. Either way ONE call replaces the whole
+   *  published set — two callers publishing different owners would still fight over the sidebar. */
+  setNav?: (items: ExtNavChild[] | ExtNavPublish) => void;
 }
 
 /** What a page `mount` MAY return instead of a bare teardown (parity with `WidgetHandle`): `update(ctx)`
