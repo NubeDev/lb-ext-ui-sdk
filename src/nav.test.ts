@@ -15,7 +15,7 @@ afterEach(() => vi.restoreAllMocks());
 describe("clampNavChildren", () => {
   it("passes a small tree through, normalized", () => {
     const items: ExtNavChild[] = [
-      { id: "a", label: "Acme HQ", icon: "building" },
+      { id: "a", label: "Nube HQ", icon: "building" },
       { id: "b", label: "Depot", children: [{ id: "b1", label: "Bay 1" }] },
     ];
     expect(clampNavChildren(items)).toEqual(items);
@@ -77,7 +77,7 @@ describe("clampNavChildren", () => {
     const items: ExtNavChild[] = [
       {
         id: "site-1",
-        label: "Acme HQ",
+        label: "Nube HQ",
         dashboard: "dashboard:ems-site-overview",
         vars: { site: "site-1" },
         children: [

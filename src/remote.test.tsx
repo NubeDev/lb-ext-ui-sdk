@@ -8,9 +8,9 @@ import type { PageBridge, PageCtx, PageHandle } from "./page.js";
 import { useRoute } from "./runtime.js";
 import type { WidgetBridge, WidgetCtx, WidgetHandle } from "./widget.js";
 
-const ctx: PageCtx = { workspace: "acme" };
+const ctx: PageCtx = { workspace: "nube" };
 const bridge: PageBridge = { call: async () => ({}) as never };
-const wctx: WidgetCtx = { v: 4, workspace: "acme", binding: {}, options: {} };
+const wctx: WidgetCtx = { v: 4, workspace: "nube", binding: {}, options: {} };
 const wbridge: WidgetBridge = { call: async () => ({}) as never, watch: () => () => {} };
 
 // `defineRemote` mounts via React's `createRoot().render()`, which commits asynchronously — wrap the
@@ -101,7 +101,7 @@ describe("defineRemote — SDK-owned federation entry", () => {
 
     const { mount } = defineRemote({ id: "ems", page: () => <Page /> });
     const el = document.createElement("div");
-    const handle = mountAct(() => mount(el, { workspace: "acme", route: "" }, bridge)) as PageHandle;
+    const handle = mountAct(() => mount(el, { workspace: "nube", route: "" }, bridge)) as PageHandle;
 
     const routeText = () => el.querySelector("[data-testid='route']")?.textContent;
     expect(routeText()).toBe("root");
@@ -110,7 +110,7 @@ describe("defineRemote — SDK-owned federation entry", () => {
     const baseline = mountCount;
 
     for (const r of ["explore", "sites", "sites/site-1", "studio"]) {
-      act(() => handle.update!({ workspace: "acme", route: r }));
+      act(() => handle.update!({ workspace: "nube", route: r }));
       expect(routeText()).toBe(r);
       // The decisive assertion: no navigation ever remounts the page — the counter never moves.
       expect(mountCount).toBe(baseline);
@@ -130,8 +130,8 @@ describe("defineRemote — SDK-owned federation entry", () => {
     }
     const { mount } = defineRemote({ id: "ems", page: () => <Page /> });
     const el = document.createElement("div");
-    const handle = mountAct(() => mount(el, { workspace: "acme", route: "a" }, bridge)) as PageHandle;
-    act(() => handle.update!({ workspace: "acme", route: "b" }));
+    const handle = mountAct(() => mount(el, { workspace: "nube", route: "a" }, bridge)) as PageHandle;
+    act(() => handle.update!({ workspace: "nube", route: "b" }));
     // Same instance kept counting (>=2 renders, ending on route "b") — a remount would have reset to "1:b".
     const [renders, route] = (el.querySelector("[data-testid='renders']")?.textContent ?? "").split(":");
     expect(route).toBe("b");
