@@ -23,7 +23,24 @@ export const NAV_MAX_VAR_KV = 128;
  * Pure — no side effects beyond the warning; safe to call on every publish.
  */
 export function clampNavChildren(items) {
-    let count = 0;
+    return clampOne(items, { count: 0 });
+}
+/**
+ * Clamp an OWNER-KEYED publish (one subtree per declared `[[ui.nav]]` item). The caps are the
+ * extension's, not the owner's: every node under every owner counts against the SAME
+ * `NAV_MAX_ITEMS` budget, because they all land in one sidebar. Owners are walked in insertion
+ * order, so an extension decides what gets the budget by the order it builds the map — put the list
+ * that must not silently vanish first.
+ */
+export function clampNavPublish(groups) {
+    const shared = { count: 0 };
+    const out = {};
+    for (const [owner, items] of Object.entries(groups)) {
+        out[owner] = clampOne(Array.isArray(items) ? items : [], shared);
+    }
+    return out;
+}
+function clampOne(items, shared) {
     let overCount = false;
     let overDepth = false;
     let overLabel = false;
@@ -59,11 +76,11 @@ export function clampNavChildren(items) {
         }
         const out = [];
         for (const n of nodes) {
-            if (count >= NAV_MAX_ITEMS) {
+            if (shared.count >= NAV_MAX_ITEMS) {
                 overCount = true;
                 break;
             }
-            count++;
+            shared.count++;
             let label = typeof n.label === "string" ? n.label : "";
             if (label.length > NAV_MAX_LABEL) {
                 label = label.slice(0, NAV_MAX_LABEL);
