@@ -1,4 +1,4 @@
-import type { ExtNavChild } from "./page.js";
+import type { ExtNavChild, ExtNavPublish } from "./page.js";
 /** Max total children published across a whole `setNav` call (every node at every depth counts). */
 export declare const NAV_MAX_ITEMS = 200;
 /** Max nesting depth of published children (the declared parent is depth 0; its children depth 1). */
@@ -16,4 +16,12 @@ export declare const NAV_MAX_VAR_KV = 128;
  * Pure — no side effects beyond the warning; safe to call on every publish.
  */
 export declare function clampNavChildren(items: ExtNavChild[]): ExtNavChild[];
+/**
+ * Clamp an OWNER-KEYED publish (one subtree per declared `[[ui.nav]]` item). The caps are the
+ * extension's, not the owner's: every node under every owner counts against the SAME
+ * `NAV_MAX_ITEMS` budget, because they all land in one sidebar. Owners are walked in insertion
+ * order, so an extension decides what gets the budget by the order it builds the map — put the list
+ * that must not silently vanish first.
+ */
+export declare function clampNavPublish(groups: ExtNavPublish): ExtNavPublish;
 //# sourceMappingURL=nav.d.ts.map
