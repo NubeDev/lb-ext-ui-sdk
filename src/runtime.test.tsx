@@ -20,7 +20,7 @@ function mountAct(fn: () => void | (() => void)) {
 
 describe("/runtime — in-page session + MCP hooks fed by defineRemote", () => {
   it("useSession resolves the host ctx inside a mounted remote", () => {
-    const ctx: PageCtx = { workspace: "acme" };
+    const ctx: PageCtx = { workspace: "nube" };
     const bridge: PageBridge = { call: async () => ({}) as never };
 
     let seen: PageCtx | null = null;
@@ -32,11 +32,11 @@ describe("/runtime — in-page session + MCP hooks fed by defineRemote", () => {
     const el = document.createElement("div");
     mountAct(() => mount(el, ctx, bridge));
 
-    expect(seen).toEqual({ workspace: "acme" });
+    expect(seen).toEqual({ workspace: "nube" });
   });
 
   it("useMcpClient hands back the host bridge's caps-checked call", async () => {
-    const ctx: PageCtx = { workspace: "acme" };
+    const ctx: PageCtx = { workspace: "nube" };
     const calls: Array<[string, unknown]> = [];
     const bridge: PageBridge = {
       call: async (tool: string, args?: Record<string, unknown>) => {
@@ -62,7 +62,7 @@ describe("/runtime — in-page session + MCP hooks fed by defineRemote", () => {
   it("useCaps/useIsAdmin read the host-stamped caller projection", () => {
     // The host (rubix-ai ExtHost) stamps the verified session's caps + its own isAdmin verdict onto
     // the mount ctx; the page reads them synchronously, no probe.
-    const ctx: PageCtx = { workspace: "acme", caps: ["mcp:ems.access.grant:call"], isAdmin: true };
+    const ctx: PageCtx = { workspace: "nube", caps: ["mcp:ems.access.grant:call"], isAdmin: true };
     const bridge: PageBridge = { call: async () => ({}) as never };
 
     let caps: string[] | null = null;
@@ -83,7 +83,7 @@ describe("/runtime — in-page session + MCP hooks fed by defineRemote", () => {
   it("useCaps/useIsAdmin fail CLOSED under an old host that omits the fields", () => {
     // Backward-compat: a legacy `{ workspace }`-only ctx (a host predating ui-v0.12.0). caps ⇒ [],
     // isAdmin ⇒ false — an ext hides admin affordances rather than showing them to everyone.
-    const ctx: PageCtx = { workspace: "acme" };
+    const ctx: PageCtx = { workspace: "nube" };
     const bridge: PageBridge = { call: async () => ({}) as never };
 
     let caps: string[] | null = null;
@@ -107,7 +107,7 @@ describe("/runtime — in-page session + MCP hooks fed by defineRemote", () => {
     let seen: WidgetCtx | null = null;
     const ctx: WidgetCtx = {
       v: 4,
-      workspace: "acme",
+      workspace: "nube",
       binding: {},
       options: {},
       caps: ["mcp:ems.access.grant:call"],
@@ -149,7 +149,7 @@ describe("/runtime — in-page session + MCP hooks fed by defineRemote", () => {
     // Because the signal is a STATE and not an event, the very first ctx already carries it — there is
     // nothing to have missed and nothing to replay.
     const handle = mountAct(() =>
-      mount(el, { workspace: "acme", navExpanded: ["networks/plant-a"] }, bridge),
+      mount(el, { workspace: "nube", navExpanded: ["networks/plant-a"] }, bridge),
     ) as PageHandle;
     const text = () => el.querySelector("[data-testid='n']")?.textContent;
     expect(text()).toBe("networks/plant-a");
@@ -157,12 +157,12 @@ describe("/runtime — in-page session + MCP hooks fed by defineRemote", () => {
 
     // A further expand arrives through the live re-supply — in place, NOT a remount (page state, scroll
     // and in-flight fetches all survive, exactly as for `route`).
-    act(() => handle.update?.({ workspace: "acme", navExpanded: ["networks/plant-a", "networks/plant-b"] }));
+    act(() => handle.update?.({ workspace: "nube", navExpanded: ["networks/plant-a", "networks/plant-b"] }));
     expect(text()).toBe("networks/plant-a|networks/plant-b");
     expect(mountCount).toBe(baseline);
 
     // Collapsing everything is just a smaller set.
-    act(() => handle.update?.({ workspace: "acme", navExpanded: [] }));
+    act(() => handle.update?.({ workspace: "nube", navExpanded: [] }));
     expect(text()).toBe("none");
     expect(mountCount).toBe(baseline);
   });
@@ -178,8 +178,8 @@ describe("/runtime — in-page session + MCP hooks fed by defineRemote", () => {
     const bridge: PageBridge = { call: async () => ({}) as never };
     const { mount } = defineRemote({ id: "lazy-nav-old-host", page: () => <Page /> });
     const el = document.createElement("div");
-    const handle = mountAct(() => mount(el, { workspace: "acme" }, bridge)) as PageHandle;
-    act(() => handle.update?.({ workspace: "acme", route: "networks" }));
+    const handle = mountAct(() => mount(el, { workspace: "nube" }, bridge)) as PageHandle;
+    act(() => handle.update?.({ workspace: "nube", route: "networks" }));
 
     expect(seen.length).toBeGreaterThan(1);
     expect(seen[0]).toEqual([]);

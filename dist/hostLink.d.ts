@@ -12,7 +12,7 @@ export interface HostLinkOptions {
     vars?: Record<string, string | string[]>;
 }
 /** Build a stable host-dashboard deep link (a hash fragment). See the file header for the host contract.
- *  Example: `hostLink({ workspace: "acme", dashboard: "ems-meter-detail", vars: { meter: "mtr-hq-main" } })`
- *  → `"#/t/acme/dashboards/ems-meter-detail?var-meter=mtr-hq-main"`. */
+ *  Example: `hostLink({ workspace: "nube", dashboard: "ems-meter-detail", vars: { meter: "mtr-hq-main" } })`
+ *  → `"#/t/nube/dashboards/ems-meter-detail?var-meter=mtr-hq-main"`. */
 export declare function hostLink(opts: HostLinkOptions): string;
 //# sourceMappingURL=hostLink.d.ts.map

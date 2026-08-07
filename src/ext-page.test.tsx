@@ -16,7 +16,7 @@ function mountPage(ctx: PageCtx, opts?: { crumbs?: Crumb[] }): HTMLElement {
       <ExtPage
         title={opts?.crumbs ? undefined : "Sites"}
         crumbs={opts?.crumbs}
-        workspace="acme"
+        workspace="nube"
         actions={<button>Add</button>}
       >
         <div data-testid="body">body</div>
@@ -43,11 +43,11 @@ function toggleButton(el: HTMLElement): HTMLButtonElement | null {
 
 describe("/ext-page — header inherits the host's Header chrome (inherit-only)", () => {
   it("renders body + actions and defaults to slim when no headerStyle is threaded", () => {
-    const el = mountPage({ workspace: "acme" });
+    const el = mountPage({ workspace: "nube" });
     expect(el.querySelector('[data-testid="body"]')?.textContent).toBe("body");
     expect(el.querySelector("button")?.textContent).toBe("Add");
     expect(el.textContent).toContain("Sites");
-    expect(el.textContent).toContain("acme");
+    expect(el.textContent).toContain("nube");
     expect(hasBandWash(el)).toBe(false);
   });
 
@@ -56,7 +56,7 @@ describe("/ext-page — header inherits the host's Header chrome (inherit-only)"
   // height and silently hands the whole page — header included — to the ancestor's scrollbar).
   describe("scroll region (the SDK owns it, so the header pins)", () => {
     it("scrolls the body, not the section: the header is a non-shrinking sibling of the scroller", () => {
-      const el = mountPage({ workspace: "acme" });
+      const el = mountPage({ workspace: "nube" });
       const section = el.querySelector("section") as HTMLElement;
       const header = section.querySelector("header") as HTMLElement;
       const body = el.querySelector('[data-testid="body"]')?.parentElement as HTMLElement;
@@ -75,17 +75,17 @@ describe("/ext-page — header inherits the host's Header chrome (inherit-only)"
   });
 
   it("renders the band shape when the member picked band", () => {
-    expect(hasBandWash(mountPage({ workspace: "acme", headerStyle: "band" }))).toBe(true);
+    expect(hasBandWash(mountPage({ workspace: "nube", headerStyle: "band" }))).toBe(true);
   });
 
   it("renders a flat bar (no band wash) for breadcrumbs", () => {
-    expect(hasBandWash(mountPage({ workspace: "acme", headerStyle: "breadcrumbs" }))).toBe(false);
+    expect(hasBandWash(mountPage({ workspace: "nube", headerStyle: "breadcrumbs" }))).toBe(false);
   });
 
   describe("sidebar toggle (honours the Sidebar-button setting + the host callback)", () => {
     it("shows the toggle and calls the host callback when shown + callback provided", () => {
       const onToggleSidebar = vi.fn();
-      const el = mountPage({ workspace: "acme", headerStyle: "slim", sidebarToggle: "shown", onToggleSidebar });
+      const el = mountPage({ workspace: "nube", headerStyle: "slim", sidebarToggle: "shown", onToggleSidebar });
       const btn = toggleButton(el);
       expect(btn).not.toBeNull();
       act(() => btn!.click());
@@ -93,17 +93,17 @@ describe("/ext-page — header inherits the host's Header chrome (inherit-only)"
     });
 
     it("omits the toggle when the member set Sidebar button = hidden", () => {
-      const el = mountPage({ workspace: "acme", headerStyle: "slim", sidebarToggle: "hidden", onToggleSidebar: vi.fn() });
+      const el = mountPage({ workspace: "nube", headerStyle: "slim", sidebarToggle: "hidden", onToggleSidebar: vi.fn() });
       expect(toggleButton(el)).toBeNull();
     });
 
     it("omits the toggle when the host provides no callback (bare preview — nothing to toggle)", () => {
-      const el = mountPage({ workspace: "acme", headerStyle: "slim", sidebarToggle: "shown" });
+      const el = mountPage({ workspace: "nube", headerStyle: "slim", sidebarToggle: "shown" });
       expect(toggleButton(el)).toBeNull();
     });
 
     it("the band header never renders a toggle (parity with the host band)", () => {
-      const el = mountPage({ workspace: "acme", headerStyle: "band", sidebarToggle: "shown", onToggleSidebar: vi.fn() });
+      const el = mountPage({ workspace: "nube", headerStyle: "band", sidebarToggle: "shown", onToggleSidebar: vi.fn() });
       expect(toggleButton(el)).toBeNull();
     });
   });
@@ -112,7 +112,7 @@ describe("/ext-page — header inherits the host's Header chrome (inherit-only)"
     it("renders each crumb; non-last crumbs are buttons that jump to that level", () => {
       const goRoot = vi.fn();
       const el = mountPage(
-        { workspace: "acme", headerStyle: "slim" },
+        { workspace: "nube", headerStyle: "slim" },
         { crumbs: [{ label: "Sites", onClick: goRoot }, { label: "Modbus Demo" }] },
       );
       expect(el.textContent).toContain("Sites");
@@ -125,7 +125,7 @@ describe("/ext-page — header inherits the host's Header chrome (inherit-only)"
 
     it("the last crumb is the current page (aria-current, not a button)", () => {
       const el = mountPage(
-        { workspace: "acme", headerStyle: "slim" },
+        { workspace: "nube", headerStyle: "slim" },
         { crumbs: [{ label: "Sites", onClick: vi.fn() }, { label: "Modbus Demo" }] },
       );
       const current = el.querySelector('[aria-current="page"]');
