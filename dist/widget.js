@@ -8,5 +8,5 @@
 //   - v4 tile: ALSO reads `ctx.theme` and recolors on an `update` fired by a theme change.
 // A v2/v3 tile under a v4 host is byte-identical: extra ctx fields are ignored; gate on `ctx.v`.
 /** The current widget contract version this package defines. */
-export const WIDGET_CONTRACT_VERSION = 4;
+export const WIDGET_CONTRACT_VERSION = 5;
 //# sourceMappingURL=widget.js.map

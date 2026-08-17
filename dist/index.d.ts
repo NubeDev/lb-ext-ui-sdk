@@ -2,7 +2,7 @@ export type { PageCtx, PageBridge, PageHandle, RemoteMount, HeaderStyle, HeaderL
 export { clampNavChildren, clampNavPublish, NAV_MAX_ITEMS, NAV_MAX_DEPTH, NAV_MAX_LABEL, NAV_MAX_VARS, NAV_MAX_VAR_KV, } from "./nav.js";
 export { ExtPage, ExtHeader } from "./ext-page.js";
 export type { ExtPageProps, Crumb } from "./ext-page.js";
-export type { WidgetField, WidgetFrame, WidgetTheme, WidgetCtx, WidgetBridge, WidgetHandle, RemoteWidgetMount, } from "./widget.js";
+export type { WidgetField, WidgetFrame, WidgetTheme, WidgetCtx, WidgetTarget, WidgetBridge, WidgetHandle, RemoteWidgetMount, } from "./widget.js";
 export { WIDGET_CONTRACT_VERSION } from "./widget.js";
 export { defineExtConfig, REACT_EXTERNALS } from "./vite.js";
 export type { ExtConfigOptions } from "./vite.js";
