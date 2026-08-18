@@ -40,6 +40,7 @@ export type {
   WidgetFrame,
   WidgetTheme,
   WidgetCtx,
+  WidgetTarget,
   WidgetBridge,
   WidgetHandle,
   RemoteWidgetMount,

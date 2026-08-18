@@ -29,7 +29,7 @@ describe("defineExtConfig", () => {
 });
 
 describe("widget contract", () => {
-  it("is at v4 (frames-in + theme)", () => {
-    expect(WIDGET_CONTRACT_VERSION).toBe(4);
+  it("is at v5 (frames-in + theme + targets)", () => {
+    expect(WIDGET_CONTRACT_VERSION).toBe(5);
   });
 });
