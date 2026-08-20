@@ -76,6 +76,26 @@ The contract:
    host elements, and winning specificity locally without leaking `!important` outward.
 4. **Never `document.head`.** The stylesheet is attached by `mountScoped` **inside the scoped root**, not
    the host head. `defineExtConfig()`'s `cssCodeSplit: true` keeps Vite from inlining it into `<head>`.
+5. **Overlay content must portal into the scoped root.** Rule 3 has a consequence that is easy to miss:
+   anything rendered through a React **portal** — every Radix dropdown, popover, select, dialog and
+   tooltip — defaults to `document.body`, which is **outside** `[data-ext-root]`. It therefore matches
+   **none** of the ext's compiled utilities and renders with no width, no background and no padding: an
+   unstyled, transparent, full-width overlay across the page. Nothing throws; it just looks broken.
+   Pass `usePortalContainer()` as the portal's container:
+
+   ```tsx
+   import { usePortalContainer } from "@nube/ext-ui-sdk";        // also on "@nube/ext-ui-sdk/runtime"
+
+   <DropdownMenu.Portal container={usePortalContainer()}>
+     <DropdownMenu.Content className="dash-kit …">…</DropdownMenu.Content>
+   </DropdownMenu.Portal>
+   ```
+
+   This does **not** defeat the reason portals exist. Radix portals to escape an ancestor's `overflow`
+   clipping, and the scoped root sets only `h-full w-full` — no `overflow` of its own — so the content
+   still escapes the clipping while staying inside the CSS scope. Outside a mounted remote (a story, a
+   bare test render) the hook returns `null`, which Radix reads as "use the default container", so the
+   same component works in both places.
 
 Because the scoped root lives inside the host-provided `el`, **the host shell needs no change** — an
 extension gets isolation purely by mounting through the SDK.

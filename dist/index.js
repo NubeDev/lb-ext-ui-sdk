@@ -23,6 +23,12 @@ export { extTailwindPreset, EXT_ROOT_ATTR } from "./tailwind.js";
 // boilerplate that calls this; the scoped mount + React root + widget dispatch live here, so no ext
 // hand-writes the mount plumbing. It composes `mountScoped` (CSS isolation) with a React root.
 export { defineRemote } from "./remote.js";
+// `usePortalContainer` — the DOM node overlay content must portal into (the ext's scoped root). Also
+// available from the `./runtime` subpath with the other in-page hooks; re-exported here because it is a
+// CSS-isolation concern, and the isolation story is what this barrel documents. A Radix portal that
+// defaults to `document.body` lands OUTSIDE `[data-ext-root]` and matches none of the ext's compiled
+// utilities — an unstyled full-width overlay, with no error. See `runtime.tsx`.
+export { usePortalContainer } from "./runtime.js";
 // `hostLink` — build a stable deep link from an extension page INTO a host surface (generated-product-ux
 // scope, Plane 1). An extension seeds a dashboard from its pack and LINKS to the host's own viewer with
 // variables preselected, rather than rendering a private board — the link is built here so no ext

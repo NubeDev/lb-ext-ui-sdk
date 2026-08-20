@@ -72,14 +72,22 @@ function renderScoped(
   renderNode: (ctx: PageCtx) => ReactNode,
 ): ScopedHandle {
   let root: ReturnType<typeof createRoot> | null = null;
+  // The scoped root, captured from `mountScoped` and threaded into the provider so overlay content
+  // portals INSIDE the ext's CSS scope rather than to `document.body` (where none of the ext's
+  // `[data-ext-root]`-scoped utilities match). See `usePortalContainer`.
+  let scopedRoot: HTMLElement | null = null;
   const tree = (c: PageCtx) => (
     <StrictMode>
-      <RuntimeProvider ctx={c} bridge={bridge}>
+      <RuntimeProvider ctx={c} bridge={bridge} portalContainer={scopedRoot}>
         {renderNode(c)}
       </RuntimeProvider>
     </StrictMode>
   );
-  const teardown = mountScoped(el, { id, styles }, (mount) => {
+  const teardown = mountScoped(el, { id, styles }, (mount, extRoot) => {
+    // Assigned BEFORE the first `root.render`, so the very first tree already has the container —
+    // an overlay opened before any `update(ctx)` would otherwise portal to the body and render
+    // unstyled exactly once, which is the hardest kind of bug to reproduce.
+    scopedRoot = extRoot;
     root = createRoot(mount);
     root.render(tree(ctx));
     return () => root?.unmount();

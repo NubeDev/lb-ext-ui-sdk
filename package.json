@@ -1,6 +1,6 @@
 {
   "name": "@nube/ext-ui-sdk",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "description": "The authoritative UI contract for Lazybones extensions: the page mount, the widget (frames-in) contract, and the Vite build preset.",
   "license": "MIT",
   "repository": {

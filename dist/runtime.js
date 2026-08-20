@@ -5,12 +5,15 @@ import { jsx as _jsx } from "react/jsx-runtime";
 // the `ctx`/`bridge` the host shell passes to `mount`/`mountWidget`), so these hooks Just Work inside an
 // ext with zero wiring. Calling them outside a mounted remote throws — a programming error, not a runtime
 // condition.
-import { createContext, useContext } from "react";
+import { createContext, useContext, useMemo } from "react";
 const RuntimeCtx = createContext(null);
 /** Wrap an ext's React tree so its `useSession`/`useMcpClient` resolve. Fed by `defineRemote` from the
  *  `ctx`/`bridge` the host hands `mount`. Not for extension authors to call directly. */
-export function RuntimeProvider({ ctx, bridge, children, }) {
-    return _jsx(RuntimeCtx.Provider, { value: { ctx, call: bridge.call }, children: children });
+export function RuntimeProvider({ ctx, bridge, portalContainer = null, children, }) {
+    // Memoised on the three inputs: a fresh object each render would re-render every consumer of this
+    // context on every parent render, including on `update(ctx)` re-supply.
+    const value = useMemo(() => ({ ctx, call: bridge.call, portalContainer }), [ctx, bridge.call, portalContainer]);
+    return _jsx(RuntimeCtx.Provider, { value: value, children: children });
 }
 function useRuntime(hook) {
     const rt = useContext(RuntimeCtx);
@@ -77,6 +80,30 @@ export function useNavigate() {
  *  directly as a `useEffect`/`useMemo` dep. */
 export function useNavExpanded() {
     return useRuntime("useNavExpanded").ctx.navExpanded ?? EMPTY;
+}
+/**
+ * The DOM node overlay content must portal into — the ext's scoped root.
+ *
+ * Pass it to any component that renders through a React portal:
+ *
+ *     <DropdownMenu.Portal container={usePortalContainer()}>
+ *
+ * WHY THIS IS NOT OPTIONAL. Radix portals overlay content to `document.body` by default so it can
+ * escape an ancestor's `overflow` clipping — correct, and not something to defeat. But every utility
+ * an ext compiles is scoped under `[data-ext-root]` (see `extTailwindPreset`), and `document.body` is
+ * outside that root. Portalled content therefore matches NONE of the ext's CSS and renders as an
+ * unstyled, full-width, transparent overlay across the page. There is no error — it just looks broken.
+ *
+ * Portalling into the scoped root keeps the content inside the CSS scope while still escaping the
+ * clipping, because the root is `h-full w-full` and sets no `overflow` of its own.
+ *
+ * Returns `null` outside a mounted remote (a story, a bare test render) — which is exactly what Radix
+ * treats as "use the default container", so a component wired this way works in both places. It does
+ * NOT throw, unlike the other hooks here: an overlay that renders unstyled in a story is a far better
+ * failure than one that crashes the page.
+ */
+export function usePortalContainer() {
+    return useContext(RuntimeCtx)?.portalContainer ?? null;
 }
 /** A shared stable empty array so `useNavExpanded()` has a referentially stable fallback on an old host
  *  (a fresh `[]` each render would re-fire every effect that deps on it). */

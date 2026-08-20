@@ -5,7 +5,7 @@
 // ext with zero wiring. Calling them outside a mounted remote throws — a programming error, not a runtime
 // condition.
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
 import type { PageBridge, PageCtx } from "./page.js";
 
 /** A caps-checked MCP call — the ONLY reach an ext page has to the platform. Mirrors `PageBridge.call`. */
@@ -14,6 +14,9 @@ export type McpClient = <T = unknown>(tool: string, args?: Record<string, unknow
 interface Runtime {
   ctx: PageCtx;
   call: McpClient;
+  /** The ext's scoped root (`<div data-ext-root="<id>">`) — the portal container for overlay content.
+   *  `null` only when a tree is rendered outside `defineRemote` (a story, a bare test render). */
+  portalContainer: HTMLElement | null;
 }
 
 const RuntimeCtx = createContext<Runtime | null>(null);
@@ -23,13 +26,22 @@ const RuntimeCtx = createContext<Runtime | null>(null);
 export function RuntimeProvider({
   ctx,
   bridge,
+  portalContainer = null,
   children,
 }: {
   ctx: PageCtx;
   bridge: PageBridge;
+  /** The scoped root, from `mountScoped`. Threaded so `usePortalContainer()` can hand it to Radix. */
+  portalContainer?: HTMLElement | null;
   children: ReactNode;
 }) {
-  return <RuntimeCtx.Provider value={{ ctx, call: bridge.call }}>{children}</RuntimeCtx.Provider>;
+  // Memoised on the three inputs: a fresh object each render would re-render every consumer of this
+  // context on every parent render, including on `update(ctx)` re-supply.
+  const value = useMemo(
+    () => ({ ctx, call: bridge.call, portalContainer }),
+    [ctx, bridge.call, portalContainer],
+  );
+  return <RuntimeCtx.Provider value={value}>{children}</RuntimeCtx.Provider>;
 }
 
 function useRuntime(hook: string): Runtime {
@@ -103,6 +115,31 @@ export function useNavigate(): (path: string) => void {
  *  directly as a `useEffect`/`useMemo` dep. */
 export function useNavExpanded(): string[] {
   return useRuntime("useNavExpanded").ctx.navExpanded ?? EMPTY;
+}
+
+/**
+ * The DOM node overlay content must portal into — the ext's scoped root.
+ *
+ * Pass it to any component that renders through a React portal:
+ *
+ *     <DropdownMenu.Portal container={usePortalContainer()}>
+ *
+ * WHY THIS IS NOT OPTIONAL. Radix portals overlay content to `document.body` by default so it can
+ * escape an ancestor's `overflow` clipping — correct, and not something to defeat. But every utility
+ * an ext compiles is scoped under `[data-ext-root]` (see `extTailwindPreset`), and `document.body` is
+ * outside that root. Portalled content therefore matches NONE of the ext's CSS and renders as an
+ * unstyled, full-width, transparent overlay across the page. There is no error — it just looks broken.
+ *
+ * Portalling into the scoped root keeps the content inside the CSS scope while still escaping the
+ * clipping, because the root is `h-full w-full` and sets no `overflow` of its own.
+ *
+ * Returns `null` outside a mounted remote (a story, a bare test render) — which is exactly what Radix
+ * treats as "use the default container", so a component wired this way works in both places. It does
+ * NOT throw, unlike the other hooks here: an overlay that renders unstyled in a story is a far better
+ * failure than one that crashes the page.
+ */
+export function usePortalContainer(): HTMLElement | null {
+  return useContext(RuntimeCtx)?.portalContainer ?? null;
 }
 
 /** A shared stable empty array so `useNavExpanded()` has a referentially stable fallback on an old host
