@@ -57,7 +57,8 @@ export interface MountScopedOptions {
 /**
  * Mount an extension's UI into `el` with full CSS isolation, and return a single teardown.
  *
- * Creates `<div data-ext-root="<id>" class="h-full w-full">` under `el`, attaches `styles` as a
+ * Creates `<div data-ext-root="<id>">` under `el` (sized by INLINE STYLE — see below), attaches
+ * `styles` as a
  * `<style>` INSIDE that div (scoped, not head), then calls `render(mount)` with a DEDICATED content
  * child (so React's `createRoot`, which clears its container, can't wipe the `<style>` sibling). The
  * returned teardown runs the render's own teardown (if any) and removes the scoped root — taking the
@@ -71,7 +72,27 @@ export function mountScoped(
   const doc = el.ownerDocument;
   const root = doc.createElement("div");
   root.setAttribute("data-ext-root", id);
-  root.className = "h-full w-full";
+  // ⚠ INLINE STYLE, never Tailwind classes — the scoped root cannot style ITSELF from the ext's sheet.
+  //
+  // This used to be `className = "h-full w-full"`, which silently did nothing. `extTailwindPreset()`
+  // scopes every compiled utility under `[data-ext-root]`, so the ext's own `h-full` compiles to
+  // `[data-ext-root] .h-full` (or, via a kit sheet, `[data-ext-root] :is(.dash-kit .h-full)`) — a
+  // DESCENDANT selector. The scoped root IS the `[data-ext-root]` element, so no such rule can ever
+  // match it. The class sat there inert.
+  //
+  // The consequence was not a cosmetic one: unsized, the root grew to fit its content instead of
+  // filling the host's bounded slot. Measured at 3006px inside a 700px slot — and because every
+  // descendant's `height:100%`/`flex:1` resolves against that, `<ExtPage>`'s `overflowY:auto` body
+  // got a clientHeight EQUAL to its scrollHeight and had nothing to scroll. So the page simply could
+  // not be scrolled, and the content past the fold was unreachable, with no error anywhere.
+  //
+  // Inline style is immune: it needs no stylesheet, no build config, and no cooperation from the
+  // ext's scoping. `minHeight: 0` is required alongside the height for the same reason it is on every
+  // flex child below — without it a flex item refuses to shrink below its content and re-breaks the
+  // exact chain this is fixing.
+  root.style.height = "100%";
+  root.style.width = "100%";
+  root.style.minHeight = "0";
 
   // Scoped stylesheet: the ext's compiled CSS lives UNDER the root, never in the host head. When the
   // root is removed on teardown, the stylesheet goes with it. A style element inside the body still
@@ -88,7 +109,11 @@ export function mountScoped(
   // clears its children on mount — if we handed it `root`, it would remove the `<style>` sibling above.
   // Rendering into a separate child keeps the stylesheet intact for the ext's whole lifetime.
   const mount = doc.createElement("div");
-  mount.className = "h-full w-full";
+  // Inline for the same reason as the root: this node also sits at/above the ext's own CSS scope
+  // boundary in the height chain, and a class here would be just as inert.
+  mount.style.height = "100%";
+  mount.style.width = "100%";
+  mount.style.minHeight = "0";
   root.appendChild(mount);
 
   el.appendChild(root);

@@ -37,6 +37,51 @@ describe("mountScoped — CSS isolation", () => {
     expect(el.querySelector("style")).toBeNull();
   });
 
+  // The height chain. The host mounts an ext into a BOUNDED, non-scrolling slot and expects the ext
+  // to fill it; `<ExtPage>` then relies on that bound to give its `overflowY:auto` body something to
+  // scroll within. If the scoped root does not take the slot's height, it grows to fit its content
+  // instead, every descendant's `height:100%` resolves against THAT, and the page cannot scroll at
+  // all — silently.
+  describe("the scoped root is sized by inline style, not by classes", () => {
+    it("sizes the root inline so it never depends on the ext's own stylesheet", () => {
+      // The bug this pins: `className = "h-full w-full"` was inert. Utilities compile scoped UNDER
+      // `[data-ext-root]`, so `[data-ext-root] .h-full` is a descendant selector that cannot match
+      // the `[data-ext-root]` element itself. Measured consequence: a 3006px root in a 700px slot.
+      const el = document.createElement("div");
+      let rootNode: HTMLElement | null = null;
+      mountScoped(el, { id: "esr" }, (_m, root) => {
+        rootNode = root;
+      });
+      expect(rootNode!.style.height).toBe("100%");
+      expect(rootNode!.style.width).toBe("100%");
+      // Required for the same reason it is on every flex child: without it a flex item refuses to
+      // shrink below its content, which re-breaks the chain this exists to fix.
+      expect(rootNode!.style.minHeight).toBe("0px");
+    });
+
+    it("sizes the React content child inline too", () => {
+      // It sits at the same boundary in the chain, so a class here is just as inert.
+      const el = document.createElement("div");
+      let mountNode: HTMLElement | null = null;
+      mountScoped(el, { id: "esr" }, (mount) => {
+        mountNode = mount;
+      });
+      expect(mountNode!.style.height).toBe("100%");
+      expect(mountNode!.style.minHeight).toBe("0px");
+    });
+
+    it("does not rely on Tailwind classes for its own layout", () => {
+      // Belt and braces: if someone reintroduces `h-full` here, the inline style must still be what
+      // does the work — a class alone is unreachable from the ext's scoped sheet.
+      const el = document.createElement("div");
+      let rootNode: HTMLElement | null = null;
+      mountScoped(el, { id: "esr" }, (_m, root) => {
+        rootNode = root;
+      });
+      expect(rootNode!.style.height).toBe("100%");
+    });
+  });
+
   // The portal-container contract. Radix defaults overlay content to `document.body`, which is OUTSIDE
   // the scoped root — so every `[data-ext-root]`-scoped utility fails to match and the overlay renders
   // unstyled. `mountScoped` hands the root back so the caller can portal INSIDE the scope instead.
@@ -79,15 +124,15 @@ describe("mountScoped — CSS isolation", () => {
 
     it("the root imposes no overflow, so a portal still escapes clipping", () => {
       // The reason portalling into the root is safe rather than a regression: Radix portals to escape
-      // an ancestor's `overflow`. The scoped root sets only `h-full w-full` — no overflow of its own —
-      // so content portalled into it is still free of the page's clipping context.
+      // an ancestor's `overflow`. The scoped root sets a height but NO overflow of its own — so
+      // content portalled into it is still free of the page's clipping context.
       const el = document.createElement("div");
       let rootNode: HTMLElement | null = null;
       mountScoped(el, { id: "esr" }, (_m, root) => {
         rootNode = root;
       });
       expect(rootNode!.style.overflow).toBe("");
-      expect(rootNode!.className).toBe("h-full w-full");
+      expect(rootNode!.style.overflowY).toBe("");
     });
   });
 });

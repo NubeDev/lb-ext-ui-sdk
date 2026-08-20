@@ -31,7 +31,8 @@ export interface MountScopedOptions {
 /**
  * Mount an extension's UI into `el` with full CSS isolation, and return a single teardown.
  *
- * Creates `<div data-ext-root="<id>" class="h-full w-full">` under `el`, attaches `styles` as a
+ * Creates `<div data-ext-root="<id>">` under `el` (sized by INLINE STYLE — see below), attaches
+ * `styles` as a
  * `<style>` INSIDE that div (scoped, not head), then calls `render(mount)` with a DEDICATED content
  * child (so React's `createRoot`, which clears its container, can't wipe the `<style>` sibling). The
  * returned teardown runs the render's own teardown (if any) and removes the scoped root — taking the
