@@ -30,8 +30,16 @@ import { RuntimeProvider } from "./runtime.js";
  *  and its state survives. `update` calling `root.render` again is idempotent reconciliation, not a new mount. */
 function renderScoped(el, id, styles, ctx, bridge, renderNode) {
     let root = null;
-    const tree = (c) => (_jsx(StrictMode, { children: _jsx(RuntimeProvider, { ctx: c, bridge: bridge, children: renderNode(c) }) }));
-    const teardown = mountScoped(el, { id, styles }, (mount) => {
+    // The scoped root, captured from `mountScoped` and threaded into the provider so overlay content
+    // portals INSIDE the ext's CSS scope rather than to `document.body` (where none of the ext's
+    // `[data-ext-root]`-scoped utilities match). See `usePortalContainer`.
+    let scopedRoot = null;
+    const tree = (c) => (_jsx(StrictMode, { children: _jsx(RuntimeProvider, { ctx: c, bridge: bridge, portalContainer: scopedRoot, children: renderNode(c) }) }));
+    const teardown = mountScoped(el, { id, styles }, (mount, extRoot) => {
+        // Assigned BEFORE the first `root.render`, so the very first tree already has the container —
+        // an overlay opened before any `update(ctx)` would otherwise portal to the body and render
+        // unstyled exactly once, which is the hardest kind of bug to reproduce.
+        scopedRoot = extRoot;
         root = createRoot(mount);
         root.render(tree(ctx));
         return () => root?.unmount();

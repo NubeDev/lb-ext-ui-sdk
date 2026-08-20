@@ -4,9 +4,11 @@ import type { PageBridge, PageCtx } from "./page.js";
 export type McpClient = <T = unknown>(tool: string, args?: Record<string, unknown>) => Promise<T>;
 /** Wrap an ext's React tree so its `useSession`/`useMcpClient` resolve. Fed by `defineRemote` from the
  *  `ctx`/`bridge` the host hands `mount`. Not for extension authors to call directly. */
-export declare function RuntimeProvider({ ctx, bridge, children, }: {
+export declare function RuntimeProvider({ ctx, bridge, portalContainer, children, }: {
     ctx: PageCtx;
     bridge: PageBridge;
+    /** The scoped root, from `mountScoped`. Threaded so `usePortalContainer()` can hand it to Radix. */
+    portalContainer?: HTMLElement | null;
     children: ReactNode;
 }): import("react").JSX.Element;
 /** The workspace-scoped session for the mounted ext. Typed by the caller; the host guarantees at least
@@ -54,4 +56,26 @@ export declare function useNavigate(): (path: string) => void;
  *  SHARED empty array in that case, so the identity is stable across renders and it is safe to use
  *  directly as a `useEffect`/`useMemo` dep. */
 export declare function useNavExpanded(): string[];
+/**
+ * The DOM node overlay content must portal into — the ext's scoped root.
+ *
+ * Pass it to any component that renders through a React portal:
+ *
+ *     <DropdownMenu.Portal container={usePortalContainer()}>
+ *
+ * WHY THIS IS NOT OPTIONAL. Radix portals overlay content to `document.body` by default so it can
+ * escape an ancestor's `overflow` clipping — correct, and not something to defeat. But every utility
+ * an ext compiles is scoped under `[data-ext-root]` (see `extTailwindPreset`), and `document.body` is
+ * outside that root. Portalled content therefore matches NONE of the ext's CSS and renders as an
+ * unstyled, full-width, transparent overlay across the page. There is no error — it just looks broken.
+ *
+ * Portalling into the scoped root keeps the content inside the CSS scope while still escaping the
+ * clipping, because the root is `h-full w-full` and sets no `overflow` of its own.
+ *
+ * Returns `null` outside a mounted remote (a story, a bare test render) — which is exactly what Radix
+ * treats as "use the default container", so a component wired this way works in both places. It does
+ * NOT throw, unlike the other hooks here: an overlay that renders unstyled in a story is a far better
+ * failure than one that crashes the page.
+ */
+export declare function usePortalContainer(): HTMLElement | null;
 //# sourceMappingURL=runtime.d.ts.map

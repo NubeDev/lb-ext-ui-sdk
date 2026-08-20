@@ -15,6 +15,9 @@
 //      `[data-ext-root]`, so even the appended CSS has zero global rules.
 //   4. The ext ships NO `:root{}` / `.dark{}` tokens; the scoped root sits in the host DOM and INHERITS
 //      the host's `--bg`/`--accent`/… via the CSS cascade (a JS/canvas widget reads `ctx.theme` instead).
+//   5. The scoped root is HANDED BACK to the render, so overlay content (Radix portals) can be mounted
+//      INSIDE it instead of at `document.body`. See `ScopedRender` for why that is load-bearing rather
+//      than a convenience.
 //
 // An extension author calls `mountScoped` and never touches `document.head`. Because the scoped root
 // lives inside the host-provided `el`, the HOST needs no change at all.
@@ -49,7 +52,7 @@ export function mountScoped(el, { id, styles }, render) {
     mount.className = "h-full w-full";
     root.appendChild(mount);
     el.appendChild(root);
-    const teardown = render(mount);
+    const teardown = render(mount, root);
     return () => {
         try {
             if (typeof teardown === "function")

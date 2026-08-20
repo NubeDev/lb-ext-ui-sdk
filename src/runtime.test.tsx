@@ -5,7 +5,14 @@ import { act } from "@testing-library/react";
 import { createRoot } from "react-dom/client";
 
 import { defineRemote } from "./remote.js";
-import { useSession, useMcpClient, useCaps, useIsAdmin, useNavExpanded } from "./runtime.js";
+import {
+  useSession,
+  useMcpClient,
+  useCaps,
+  useIsAdmin,
+  useNavExpanded,
+  usePortalContainer,
+} from "./runtime.js";
 import type { PageBridge, PageCtx, PageHandle } from "./page.js";
 import type { WidgetCtx } from "./widget.js";
 
@@ -203,5 +210,83 @@ describe("/runtime — in-page session + MCP hooks fed by defineRemote", () => {
       thrown = e;
     }
     expect(String(thrown)).toMatch(/useSession called outside a mounted extension remote/);
+  });
+});
+
+// The portal container — the fix for overlay content (Radix dropdowns/popovers/dialogs) rendering
+// unstyled. Portalled content defaults to `document.body`, which is outside `[data-ext-root]`, so none
+// of the ext's scoped utilities match it. `defineRemote` threads the scoped root through so a component
+// can portal INSIDE the scope instead.
+describe("usePortalContainer — overlay content stays inside the CSS scope", () => {
+  it("resolves the ext's scoped root inside a mounted remote", () => {
+    const ctx: PageCtx = { workspace: "nube" };
+    const bridge: PageBridge = { call: async () => ({}) as never };
+    let seen: HTMLElement | null | undefined;
+
+    function Page() {
+      seen = usePortalContainer();
+      return null;
+    }
+
+    const el = document.createElement("div");
+    document.body.appendChild(el);
+    const { mount } = defineRemote({ id: "esr", page: () => <Page /> });
+    const handle = mountAct(() => mount(el, ctx, bridge)) as unknown as PageHandle;
+
+    expect(seen).not.toBeNull();
+    // It is the scoped root itself — the element the compiled CSS is scoped under.
+    expect(seen!.getAttribute("data-ext-root")).toBe("esr");
+
+    // The property that actually matters: content appended here is inside the scope.
+    const overlay = document.createElement("div");
+    seen!.appendChild(overlay);
+    expect(overlay.closest("[data-ext-root]")).toBe(seen);
+
+    act(() => handle.teardown());
+    el.remove();
+  });
+
+  it("is available on the FIRST render, not only after an update(ctx)", () => {
+    // An overlay opened before any re-supply would otherwise portal to the body and render unstyled
+    // exactly once — the hardest kind of bug to reproduce. `remote.tsx` assigns the root before the
+    // first `root.render`, and this pins that ordering.
+    const ctx: PageCtx = { workspace: "nube" };
+    const bridge: PageBridge = { call: async () => ({}) as never };
+    const seenPerRender: (HTMLElement | null)[] = [];
+
+    function Page() {
+      const container = usePortalContainer();
+      useEffect(() => {
+        seenPerRender.push(container);
+      }, [container]);
+      return null;
+    }
+
+    const el = document.createElement("div");
+    document.body.appendChild(el);
+    const { mount } = defineRemote({ id: "esr", page: () => <Page /> });
+    const handle = mountAct(() => mount(el, ctx, bridge)) as unknown as PageHandle;
+
+    expect(seenPerRender[0]).not.toBeNull();
+    expect(seenPerRender[0]!.getAttribute("data-ext-root")).toBe("esr");
+
+    act(() => handle.teardown());
+    el.remove();
+  });
+
+  it("returns null outside a mounted remote instead of throwing", () => {
+    // Unlike the other hooks here, this one must NOT throw: `null` is exactly what Radix reads as
+    // "use the default container", so a component wired with it still works in a story or a bare
+    // test render. An unstyled overlay in a story beats a crashed page.
+    let seen: HTMLElement | null | undefined = undefined;
+    function Bare() {
+      seen = usePortalContainer();
+      return null;
+    }
+    const el = document.createElement("div");
+    const root = createRoot(el);
+    act(() => root.render(<Bare />));
+    expect(seen).toBeNull();
+    act(() => root.unmount());
   });
 });
