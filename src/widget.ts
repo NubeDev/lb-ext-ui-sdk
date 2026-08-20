@@ -48,7 +48,7 @@ export interface WidgetTheme {
 
 /** The v4 widget mount ctx. v2 fields remain; v3 adds `data` + `fieldConfig`; v4 adds `theme`. */
 export interface WidgetCtx {
-  /** Contract version. `4` = frames-in + theme; a tile gates on `v >= 3` (data) / `v >= 4` (theme). */
+  /** Contract version. `5` = + `targets`; a tile gates on `v >= 3` (data) / `v >= 4` (theme) / `v >= 5` (targets). */
   v: number;
   workspace: string;
   binding: Record<string, unknown>;
@@ -74,6 +74,20 @@ export interface WidgetCtx {
    *  a host predating this omits it; treat absent as `false` (an admin sees too little, never a member
    *  too much). Omitted ⇒ hide admin affordances. */
   isAdmin?: boolean;
+  /** v5: the cell's bound targets (the panel's Datasource track — `sources[]`) with their args already
+   *  INTERPOLATED against the viewer's scope — the same identity a built-in control gets as its
+   *  `source.args` (a ROS chain's `ros_uuid`/`host_uuid`/`point_uuid`|`schedule_uuid`). Frames-in
+   *  (`data = true`) hands a tile resolved DATA; a tile that also WRITES needs the address to write to,
+   *  and this is it. ADDITIVE — a host predating this omits it (treat absent as `[]`); a tile that reads
+   *  it still only calls what its manifest scope allows (the bridge is not widened). */
+  targets?: WidgetTarget[];
+}
+
+/** One bound target as the shell resolved it for the tile (v5). `args` are post-interpolation. */
+export interface WidgetTarget {
+  refId?: string;
+  tool: string;
+  args: Record<string, unknown>;
 }
 
 /** The widget bridge — the leashed `call`/`watch` seam (a data tile needs neither; it renders `ctx.data`). */
@@ -99,4 +113,4 @@ export type RemoteWidgetMount = (
 ) => void | (() => void) | WidgetHandle;
 
 /** The current widget contract version this package defines. */
-export const WIDGET_CONTRACT_VERSION = 4 as const;
+export const WIDGET_CONTRACT_VERSION = 5 as const;
