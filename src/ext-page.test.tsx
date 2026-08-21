@@ -134,3 +134,39 @@ describe("/ext-page — header inherits the host's Header chrome (inherit-only)"
     });
   });
 });
+
+describe("workspace crumb default (ext-page-workspace-default)", () => {
+  function mountBare(ctx: PageCtx, workspaceProp?: string): HTMLElement {
+    const { mount } = defineRemote({
+      id: "ext-page-ws-test",
+      page: () => (
+        <ExtPage title="Sites" workspace={workspaceProp}>
+          <div>body</div>
+        </ExtPage>
+      ),
+    });
+    const el = document.createElement("div");
+    act(() => {
+      mount(el, ctx, bridge);
+    });
+    return el;
+  }
+
+  it("defaults the leading segment from the mount ctx workspace — no prop needed", () => {
+    const el = mountBare({ workspace: "acme" } as PageCtx);
+    expect(el.textContent).toContain("acme");
+  });
+
+  it("the workspace segment links to the host workspace root", () => {
+    const el = mountBare({ workspace: "acme" } as PageCtx);
+    const a = el.querySelector('a[href="#/t/acme"]');
+    expect(a?.textContent).toBe("acme");
+  });
+
+  it("an explicit prop still wins over the ctx", () => {
+    const el = mountBare({ workspace: "acme" } as PageCtx, "other-label");
+    expect(el.textContent).toContain("other-label");
+    expect(el.textContent).not.toContain("acme");
+  });
+});
+

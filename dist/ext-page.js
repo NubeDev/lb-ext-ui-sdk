@@ -17,6 +17,7 @@ function useHeaderChoice(fallback) {
         line: session?.headerLine ?? "none",
         sidebarToggle: session?.sidebarToggle ?? "shown",
         onToggleSidebar: session?.onToggleSidebar,
+        workspace: session?.workspace,
     };
 }
 /**
@@ -32,13 +33,13 @@ function useHeaderChoice(fallback) {
  * sidebar toggle from `ctx`.
  */
 export function ExtPage({ title, crumbs, workspace, icon, description, actions, children, fallbackStyle = "slim", }) {
-    const { style, line, sidebarToggle, onToggleSidebar } = useHeaderChoice(fallbackStyle);
+    const { style, line, sidebarToggle, onToggleSidebar, workspace: ctxWorkspace } = useHeaderChoice(fallbackStyle);
     // The trail the header renders: an explicit `crumbs` wins; otherwise a single-step trail from `title`.
     const trail = crumbs ?? [{ label: title ?? "" }];
     // The toggle button shows only when the member left it `shown` AND the host actually provided a toggle
     // callback (nothing to toggle in a bare preview) — exactly the host slim header's condition.
     const toggle = sidebarToggle === "shown" ? onToggleSidebar : undefined;
-    return (_jsxs("section", { style: { display: "flex", flexDirection: "column", height: "100%", minWidth: 0, color: "hsl(var(--foreground))", background: "hsl(var(--background))" }, children: [_jsx(ExtHeader, { style: style, line: line, trail: trail, workspace: workspace, icon: icon, description: description, actions: actions, onToggleSidebar: toggle }), _jsx("div", { style: {
+    return (_jsxs("section", { style: { display: "flex", flexDirection: "column", height: "100%", minWidth: 0, color: "hsl(var(--foreground))", background: "hsl(var(--background))" }, children: [_jsx(ExtHeader, { style: style, line: line, trail: trail, workspace: workspace ?? ctxWorkspace, icon: icon, description: description, actions: actions, onToggleSidebar: toggle }), _jsx("div", { style: {
                     display: "flex",
                     minHeight: 0,
                     flex: 1,
@@ -68,12 +69,14 @@ function SidebarToggleButton({ onToggle }) {
 function Actions({ actions }) {
     return _jsx("div", { style: { marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }, children: actions });
 }
-/** The workspace + clickable breadcrumb trail, mirroring the host breadcrumb trail. The workspace is a
- *  plain label (an ext does not own the host address bar); each non-last crumb with an `onClick` is a
- *  button that jumps to that level; the last crumb is the current page (plain, `aria-current`). */
+/** The workspace + clickable breadcrumb trail, mirroring the host breadcrumb trail. The workspace
+ *  segment is a LINK to the host workspace root (`#/t/<ws>`) — exactly where the host's own headers
+ *  send it — via a plain anchor on the host's hash contract (the `hostLink` mechanism; an ext still
+ *  never pushes history itself). Each non-last crumb with an `onClick` is a button that jumps to
+ *  that level; the last crumb is the current page (plain, `aria-current`). */
 function Trail({ workspace, trail }) {
     const sep = (_jsx("span", { "aria-hidden": true, style: { color: "hsl(var(--muted-foreground))", padding: "0 2px" }, children: "/" }));
-    return (_jsxs("nav", { "aria-label": "Breadcrumb", style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, minWidth: 0 }, children: [workspace ? (_jsxs(_Fragment, { children: [_jsx("span", { style: { color: "hsl(var(--muted-foreground))" }, children: workspace }), sep] })) : null, trail.map((c, i) => {
+    return (_jsxs("nav", { "aria-label": "Breadcrumb", style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, minWidth: 0 }, children: [workspace ? (_jsxs(_Fragment, { children: [_jsx("a", { href: `#/t/${encodeURIComponent(workspace)}`, style: { color: "hsl(var(--muted-foreground))", textDecoration: "none" }, onMouseEnter: (e) => { e.currentTarget.style.color = "hsl(var(--foreground))"; }, onMouseLeave: (e) => { e.currentTarget.style.color = "hsl(var(--muted-foreground))"; }, children: workspace }), sep] })) : null, trail.map((c, i) => {
                 const last = i === trail.length - 1;
                 return (_jsxs("span", { style: { display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0 }, children: [i > 0 ? sep : null, last || !c.onClick ? (_jsx("span", { "aria-current": last ? "page" : undefined, style: { fontWeight: last ? 600 : 400, letterSpacing: last ? "-0.01em" : undefined, color: last ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }, children: c.label })) : (_jsx("button", { type: "button", onClick: c.onClick, style: { border: "none", background: "transparent", padding: 0, cursor: "pointer", color: "hsl(var(--muted-foreground))", font: "inherit" }, children: c.label }))] }, i));
             })] }));
@@ -95,6 +98,6 @@ function BreadcrumbsHeader({ line, trail, workspace, icon, actions, onToggleSide
 function BandHeader({ trail, workspace, icon, description, actions }) {
     const last = trail[trail.length - 1];
     const prefix = trail.slice(0, -1);
-    return (_jsxs("header", { style: { position: "relative", display: "flex", minHeight: "3.75rem", alignItems: "center", gap: 12, padding: "10px 16px", background: "hsl(var(--card) / 0.6)" }, children: [_jsx("div", { "aria-hidden": true, style: { position: "absolute", inset: 0, pointerEvents: "none", background: "linear-gradient(90deg, hsl(var(--accent) / 0.09), hsl(var(--accent-2) / 0.04) 32%, transparent 60%)" } }), _jsx("div", { "aria-hidden": true, style: { position: "absolute", left: 0, right: 0, bottom: 0, height: 1, pointerEvents: "none", background: "linear-gradient(90deg, hsl(var(--accent) / 0.6), hsl(var(--accent-2) / 0.4) 34%, hsl(var(--border)) 72%)" } }), icon ? (_jsx("div", { style: { position: "relative", display: "flex", height: 36, width: 36, flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: "calc(var(--radius) - 2px)", border: "1px solid hsl(var(--accent) / 0.25)", color: "hsl(var(--accent))", background: "linear-gradient(135deg, hsl(var(--accent) / 0.16), hsl(var(--accent-2) / 0.10))" }, children: icon })) : null, _jsxs("div", { style: { position: "relative", minWidth: 0 }, children: [_jsxs("div", { style: { display: "flex", alignItems: "baseline", gap: 6, minWidth: 0 }, children: [workspace ? _jsxs("span", { style: { color: "hsl(var(--muted-foreground))", fontSize: 12 }, children: [workspace, " /"] }) : null, prefix.map((c, i) => (_jsxs("span", { style: { color: "hsl(var(--muted-foreground))", fontSize: 12 }, children: [c.onClick ? (_jsx("button", { type: "button", onClick: c.onClick, style: { border: "none", background: "transparent", padding: 0, cursor: "pointer", color: "inherit", font: "inherit" }, children: c.label })) : c.label, " /"] }, i))), _jsx("span", { style: { fontWeight: 600, letterSpacing: "-0.01em", color: "hsl(var(--foreground))", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }, children: last?.label })] }), description ? _jsx("p", { style: { margin: 0, fontSize: 12, color: "hsl(var(--muted-foreground))" }, children: description }) : null] }), _jsx(Actions, { actions: actions })] }));
+    return (_jsxs("header", { style: { position: "relative", display: "flex", minHeight: "3.75rem", alignItems: "center", gap: 12, padding: "10px 16px", background: "hsl(var(--card) / 0.6)" }, children: [_jsx("div", { "aria-hidden": true, style: { position: "absolute", inset: 0, pointerEvents: "none", background: "linear-gradient(90deg, hsl(var(--accent) / 0.09), hsl(var(--accent-2) / 0.04) 32%, transparent 60%)" } }), _jsx("div", { "aria-hidden": true, style: { position: "absolute", left: 0, right: 0, bottom: 0, height: 1, pointerEvents: "none", background: "linear-gradient(90deg, hsl(var(--accent) / 0.6), hsl(var(--accent-2) / 0.4) 34%, hsl(var(--border)) 72%)" } }), icon ? (_jsx("div", { style: { position: "relative", display: "flex", height: 36, width: 36, flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: "calc(var(--radius) - 2px)", border: "1px solid hsl(var(--accent) / 0.25)", color: "hsl(var(--accent))", background: "linear-gradient(135deg, hsl(var(--accent) / 0.16), hsl(var(--accent-2) / 0.10))" }, children: icon })) : null, _jsxs("div", { style: { position: "relative", minWidth: 0 }, children: [_jsxs("div", { style: { display: "flex", alignItems: "baseline", gap: 6, minWidth: 0 }, children: [workspace ? (_jsxs("a", { href: `#/t/${encodeURIComponent(workspace)}`, style: { color: "hsl(var(--muted-foreground))", fontSize: 12, textDecoration: "none" }, children: [workspace, " /"] })) : null, prefix.map((c, i) => (_jsxs("span", { style: { color: "hsl(var(--muted-foreground))", fontSize: 12 }, children: [c.onClick ? (_jsx("button", { type: "button", onClick: c.onClick, style: { border: "none", background: "transparent", padding: 0, cursor: "pointer", color: "inherit", font: "inherit" }, children: c.label })) : c.label, " /"] }, i))), _jsx("span", { style: { fontWeight: 600, letterSpacing: "-0.01em", color: "hsl(var(--foreground))", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }, children: last?.label })] }), description ? _jsx("p", { style: { margin: 0, fontSize: 12, color: "hsl(var(--muted-foreground))" }, children: description }) : null] }), _jsx(Actions, { actions: actions })] }));
 }
 //# sourceMappingURL=ext-page.js.map
