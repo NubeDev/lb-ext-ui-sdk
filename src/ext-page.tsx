@@ -69,6 +69,8 @@ interface HeaderChoice {
   line: HeaderLine;
   sidebarToggle: SidebarToggle;
   onToggleSidebar?: () => void;
+  /** The mount ctx's workspace — `ExtPage`'s default leading crumb segment. */
+  workspace?: string;
 }
 
 /** Read the member's header choices + the host sidebar-toggle callback from the mount `ctx` (threaded by
@@ -80,12 +82,14 @@ function useHeaderChoice(fallback: HeaderStyle): HeaderChoice {
     headerLine?: HeaderLine;
     sidebarToggle?: SidebarToggle;
     onToggleSidebar?: () => void;
+    workspace?: string;
   }>();
   return {
     style: session?.headerStyle ?? fallback,
     line: session?.headerLine ?? "none",
     sidebarToggle: session?.sidebarToggle ?? "shown",
     onToggleSidebar: session?.onToggleSidebar,
+    workspace: session?.workspace,
   };
 }
 
@@ -111,7 +115,7 @@ export function ExtPage({
   children,
   fallbackStyle = "slim",
 }: ExtPageProps) {
-  const { style, line, sidebarToggle, onToggleSidebar } = useHeaderChoice(fallbackStyle);
+  const { style, line, sidebarToggle, onToggleSidebar, workspace: ctxWorkspace } = useHeaderChoice(fallbackStyle);
   // The trail the header renders: an explicit `crumbs` wins; otherwise a single-step trail from `title`.
   const trail: Crumb[] = crumbs ?? [{ label: title ?? "" }];
   // The toggle button shows only when the member left it `shown` AND the host actually provided a toggle
@@ -121,7 +125,10 @@ export function ExtPage({
     <section
       style={{ display: "flex", flexDirection: "column", height: "100%", minWidth: 0, color: "hsl(var(--foreground))", background: "hsl(var(--background))" }}
     >
-      <ExtHeader style={style} line={line} trail={trail} workspace={workspace} icon={icon} description={description} actions={actions} onToggleSidebar={toggle} />
+      {/* The workspace segment DEFAULTS from the mount ctx — host pages get it from routing context
+          automatically, so an ext page must too, or every extension re-ships the bug of forgetting
+          it (rust-ros did). The explicit prop still wins for the rare page that needs another label. */}
+      <ExtHeader style={style} line={line} trail={trail} workspace={workspace ?? ctxWorkspace} icon={icon} description={description} actions={actions} onToggleSidebar={toggle} />
       {/* THE page's scroll region — the one and only one. The host mounts an ext into a BOUNDED,
           non-scrolling box (`overflow-hidden`), so `height: 100%` above resolves against the viewport and
           this `flex: 1; minHeight: 0` body is what overflows. Scrolling belongs here, at the layer that
@@ -198,9 +205,11 @@ function Actions({ actions }: { actions?: ReactNode }) {
   return <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>{actions}</div>;
 }
 
-/** The workspace + clickable breadcrumb trail, mirroring the host breadcrumb trail. The workspace is a
- *  plain label (an ext does not own the host address bar); each non-last crumb with an `onClick` is a
- *  button that jumps to that level; the last crumb is the current page (plain, `aria-current`). */
+/** The workspace + clickable breadcrumb trail, mirroring the host breadcrumb trail. The workspace
+ *  segment is a LINK to the host workspace root (`#/t/<ws>`) — exactly where the host's own headers
+ *  send it — via a plain anchor on the host's hash contract (the `hostLink` mechanism; an ext still
+ *  never pushes history itself). Each non-last crumb with an `onClick` is a button that jumps to
+ *  that level; the last crumb is the current page (plain, `aria-current`). */
 function Trail({ workspace, trail }: { workspace?: string; trail: Crumb[] }) {
   const sep = (
     <span aria-hidden style={{ color: "hsl(var(--muted-foreground))", padding: "0 2px" }}>/</span>
@@ -209,7 +218,14 @@ function Trail({ workspace, trail }: { workspace?: string; trail: Crumb[] }) {
     <nav aria-label="Breadcrumb" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, minWidth: 0 }}>
       {workspace ? (
         <>
-          <span style={{ color: "hsl(var(--muted-foreground))" }}>{workspace}</span>
+          <a
+            href={`#/t/${encodeURIComponent(workspace)}`}
+            style={{ color: "hsl(var(--muted-foreground))", textDecoration: "none" }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "hsl(var(--foreground))"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "hsl(var(--muted-foreground))"; }}
+          >
+            {workspace}
+          </a>
           {sep}
         </>
       ) : null}
@@ -283,7 +299,14 @@ function BandHeader({ trail, workspace, icon, description, actions }: { trail: C
       ) : null}
       <div style={{ position: "relative", minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 6, minWidth: 0 }}>
-          {workspace ? <span style={{ color: "hsl(var(--muted-foreground))", fontSize: 12 }}>{workspace} /</span> : null}
+          {workspace ? (
+            <a
+              href={`#/t/${encodeURIComponent(workspace)}`}
+              style={{ color: "hsl(var(--muted-foreground))", fontSize: 12, textDecoration: "none" }}
+            >
+              {workspace} /
+            </a>
+          ) : null}
           {prefix.map((c, i) => (
             <span key={i} style={{ color: "hsl(var(--muted-foreground))", fontSize: 12 }}>
               {c.onClick ? (
