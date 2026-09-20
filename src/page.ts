@@ -191,7 +191,7 @@ export interface PageBridge {
    *  nested entries in ITS sidebar (ext-nav-contribution scope). Ephemeral + per-mount: never persisted,
    *  never shared between members, gone on unmount. The host renders WHATEVER it is handed, so a
    *  reach-scoped label MUST be derived through the extension's own reach chokepoint before it is passed
-   *  here (the host cannot filter for the extension). The SDK CLAMPS the tree (`clampNavChildren`: ≤200
+   *  here (the host cannot filter for the extension). The SDK CLAMPS the tree (`clampNavChildren`: ≤`NAV_MAX_ITEMS`
    *  items, depth ≤3, label ≤64 chars — over-cap truncates with a console warning, never throws) so a
    *  runaway nav can never break the page. ADDITIVE + FAIL-SAFE — a host predating nav contribution omits
    *  it, and the extension then simply has no dynamic children.

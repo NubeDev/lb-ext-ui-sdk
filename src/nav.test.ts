@@ -42,8 +42,9 @@ describe("clampNavChildren", () => {
 
   it("counts nested nodes toward the total cap", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    // 100 parents each with 2 children = 300 nodes → clamped to 200.
-    const nested: ExtNavChild[] = Array.from({ length: 100 }, (_, i) => ({
+    // Parents × 3 (itself + two children) — comfortably over the cap whatever the cap is, so this
+    // keeps testing "nested nodes count too" rather than a fixed number that a raised cap outgrows.
+    const nested: ExtNavChild[] = Array.from({ length: NAV_MAX_ITEMS }, (_, i) => ({
       id: `p-${i}`,
       label: `P${i}`,
       children: [
@@ -168,7 +169,8 @@ describe("clampNavChildren", () => {
 //
 // A manifest may mark more than one `[[ui.nav]]` item `dynamic`. The clamp has to bound the whole
 // PUBLISH, not each owner separately: every node lands in one sidebar, so one budget is the honest
-// model — clamping per owner would let N owners publish N×200 rows and blow the cap the host relies on.
+// model — clamping per owner would let N owners publish N×NAV_MAX_ITEMS rows and blow the cap the
+// host relies on.
 describe("clampNavPublish", () => {
   it("keeps each owner's subtree under its own key", () => {
     const out = clampNavPublish({

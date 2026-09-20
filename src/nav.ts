@@ -9,8 +9,26 @@
 
 import type { ExtNavChild, ExtNavPublish } from "./page.js";
 
-/** Max total children published across a whole `setNav` call (every node at every depth counts). */
-export const NAV_MAX_ITEMS = 200;
+/** Max total children published across a whole `setNav` call (every node at every depth counts).
+ *
+ *  RAISED 200 → 5000. The old number had no stated reasoning beyond "bounded", and it was not a
+ *  theoretical bound: an estate publishing ~292 sites showed 199 of them and one "… and 93 more" row,
+ *  so 93 sites could not be reached from the sidebar at all. Grouping the tree was the only way out,
+ *  and it was an opt-in stored per browser.
+ *
+ *  What made 200 load-bearing was the HOST, not this contract: the shell rebuilt its whole nav model
+ *  and re-rendered every row on each publish, route change and caret toggle, and mounted every row of
+ *  an open branch. Those are fixed (rubix-ai `perf/nav-large-trees`): the model is memoized, rows are
+ *  memoized, an identical republish is dropped, and a branch mounts one page of rows and offers the
+ *  rest. Measured there in jsdom: a 5000-node publish renders in ~98 ms and an unchanged re-render
+ *  touches no rows at all.
+ *
+ *  The cap still exists, and still matters — it bounds what ANY host has to walk and hold, and the
+ *  clamp below is still the thing that keeps a runaway publish from being unbounded. A host that has
+ *  not done the work above will be slow at 5000 nodes; it will not break, because chrome truncates
+ *  rather than throws. Lazy branches (`hasChildren`) remain the right way to publish a large tree —
+ *  this number is the backstop, not the target. */
+export const NAV_MAX_ITEMS = 5000;
 /** Max nesting depth of published children (the declared parent is depth 0; its children depth 1). */
 export const NAV_MAX_DEPTH = 3;
 /** Max label length before truncation. */
